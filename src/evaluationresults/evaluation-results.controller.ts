@@ -22,7 +22,7 @@ export class EvaluationResultsController {
     @UsePipes(new ValidationPipe())
     async createIndividual(@Request() req, @Body() createEvaluationResultDto: CreateEvaluationResultDto) {
         logger.debug(`reqUser: ${req.user.username} evaluationresults createIndividual is calling with body ${JSON.stringify(createEvaluationResultDto)}`);
-        const result = await this.evaluationResultsService.createIndividual(req.user.username, createEvaluationResultDto);
+        const result = await this.evaluationResultsService.createIndividual(req.user, createEvaluationResultDto);
         logger.debug(`reqUser: ${req.user.username} return in evaluationresults createIndividual controller > service response: ${(result.Error ? `error: ${result.message}` : `Evaluation Result ${result.message}`)}`);
         return result;
     }

@@ -87,7 +87,7 @@ export class EvaluationscheduleService {
     try {
       logger.debug(`reqUser: ${reqUser.username} Evaluationschedule findAllWorkingPsSchedulesByClg method started`)
       if (reqUser.role == RType.ADMIN) {
-        const admin = await this.adminMasterRepository.findOne({ where: { usermaster: {id : reqUser.sub }, college: { id : clgId} } });
+        const admin = await this.adminMasterRepository.findOne({ where: { usermaster: { id: reqUser.sub }, college: { id : clgId} } });
         if (admin == null)
           throw "Admin not found for college"
       }

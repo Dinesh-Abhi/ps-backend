@@ -9,25 +9,25 @@ import { AttendanceEnum } from "src/enums";
 //     @IsString()
 //     attendance: string;
 
-    // @ApiProperty({ type: String })
-    // @IsNotEmpty()
-    // @IsString()
-    // mrngattendance: string;
+// @ApiProperty({ type: String })
+// @IsNotEmpty()
+// @IsString()
+// mrngattendance: string;
 
-    // @ApiProperty({ type: String })
-    // @IsNotEmpty()
-    // @IsString()
-    // aftattendance: string;
+// @ApiProperty({ type: String })
+// @IsNotEmpty()
+// @IsString()
+// aftattendance: string;
     
-    // @ApiProperty({ type: Number })
-    // @IsNotEmpty()
-    // @IsNumber()
-    // psId:number;
+// @ApiProperty({ type: Number })
+// @IsNotEmpty()
+// @IsNumber()
+// psId:number;
 
-    // @ApiProperty({ type: Number })
-    // @IsNotEmpty()
-    // @IsNumber()
-    // studentId:number;
+// @ApiProperty({ type: Number })
+// @IsNotEmpty()
+// @IsNumber()
+// studentId:number;
 // }
 
 // export class PerformanceDto {
@@ -48,19 +48,48 @@ import { AttendanceEnum } from "src/enums";
 //     studentId:number;
 // }
 
-export class BulkMarkAttendanceDto{
+export class BulkMarkAttendanceDto {
     @ApiProperty({ type: Number })
     @IsNotEmpty()
     @IsNumber()
-    spsId:number;
+    spsId: number;
 
     @ApiProperty({ type: Number })
     @IsNotEmpty()
     @IsNumber()
-    projectId:number;
+    projectId: number;
 
-    @ApiProperty({ type: 'enum',enum:AttendanceEnum })
+    @ApiProperty({ type: 'enum', enum: AttendanceEnum })
     @IsNotEmpty()
     @IsEnum(AttendanceEnum)
-    attendance:AttendanceEnum;
+    attendance: AttendanceEnum;
+}
+
+export class MarkAttendanceByAdminDto {
+
+    @ApiProperty({ type: String, format: 'YYYY-MM-DD' })
+    @IsNotEmpty()
+    @IsString()
+    date: string;
+
+    @ApiProperty({ type: Number })
+    @IsNotEmpty()
+    @IsNumber()
+    psId: number;
+
+    @ApiProperty()
+    @IsNotEmpty()
+    students: AttendanceDto[];
+}
+
+class AttendanceDto {
+    @ApiProperty({ type: String })
+    @IsNotEmpty()
+    @IsString()
+    username: string;
+
+    @ApiProperty({ type: 'enum', enum: AttendanceEnum })
+    @IsNotEmpty()
+    @IsEnum(AttendanceEnum)
+    attendance: AttendanceEnum;
 }

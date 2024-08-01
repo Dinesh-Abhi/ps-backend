@@ -27,7 +27,7 @@ export class CoordinatorMasterController {
   }
 
     @UseGuards(JwtAuthGuard, RolesGuard)
-    @Roles('ADMIN')
+    @Roles('SUPERADMIN')
     @Get('')
     @ApiResponse({ status: 201, description: 'The record has been successfully fetched.' })
     @ApiResponse({ status: 403, description: 'Forbidden.' })

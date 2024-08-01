@@ -22,8 +22,6 @@ import { UserMaster } from 'src/usermaster/user-master.entity';
 import { ProjectProgress } from 'src/projectprogress/project-progress.entity';
 import { College } from 'src/college/college.entity';
 import { StudentPs } from 'src/studentps/studentps.entity';
-import { CacheModule } from '@nestjs/cache-manager';
-import * as redisStore from 'cache-manager-redis-store';
 
 @Module({
   imports: [
@@ -34,13 +32,6 @@ import * as redisStore from 'cache-manager-redis-store';
       secret: "thisisasecretkey",
       signOptions: { expiresIn: '60s' },
     }),
-    // CacheModule.registerAsync({
-    //   useFactory: () => ({
-    //     store: redisStore,
-    //     host: 'localhost',
-    //     port: 6379,
-    //   }),
-    // }),
     TypeOrmModule.forFeature([PsMaster, StudentMaster, EvaluatorMaster, AuditLog, GroupMaster, ProjectMaster, MentorMaster, Attendance,ProjectProgress,UserMaster,College,StudentPs]),
   ],
   providers: [AuthService, LocalStrategy, JwtStrategy, TokenService,AuditLogService],

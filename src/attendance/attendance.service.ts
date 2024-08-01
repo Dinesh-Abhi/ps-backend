@@ -1,16 +1,17 @@
 import { Injectable } from '@nestjs/common';
 import { Attendance } from './attendance.entity';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, MoreThanOrEqual, Repository } from 'typeorm';
+import { In, Like, MoreThanOrEqual, Repository } from 'typeorm';
 import logger from 'src/loggerfile/logger';
 import * as path from 'path';
 import { PsMasterService } from 'src/psmaster/ps-master.service';
-import { AttendanceEnum, RType } from 'src/enums';
+import { AttendanceEnum, PSSType, RType, SType } from 'src/enums';
 import { StudentPs } from 'src/studentps/studentps.entity';
-import { BulkMarkAttendanceDto } from './dto/attendance.dto';
+import { BulkMarkAttendanceDto, MarkAttendanceByAdminDto } from './dto/attendance.dto';
 import { ERROR_MESSAGES, RESPONSE_MESSAGE } from 'src/constants';
 import { ReqUserType } from 'src/all.formats';
 import { PsMaster } from 'src/psmaster/ps-master.entity';
+const moment = require('moment');
 
 @Injectable()
 export class AttendanceService {
@@ -186,23 +187,99 @@ export class AttendanceService {
     }
 
     async checkTodayWorkingDayForPs(psId: number) {
-        logger.debug(`Attendance checkTodayWorkingDay started`);
-        // this methed is used to find current tuple is today or not if it is today's tuple we are asuming that today is working day
-        const res = await this.attendanceRepository.findOne({
-            where: { sps: { ps: { id: psId } } },
-            order: { createdon: 'DESC' },
-            select: { id: true, createdon: true },
-        });
-        if (res == null)
-            return false
-        const res_Date = new Date(res.createdon);
-        const curr_date = new Date();
-        logger.debug(`${this.filepath} > returned`)
-        return (
-            res_Date.getFullYear() === curr_date.getFullYear() &&
-            res_Date.getMonth() === curr_date.getMonth() &&
-            res_Date.getDate() === curr_date.getDate()
-        );
+        try {
+            logger.debug(`Attendance checkTodayWorkingDay started`);
+            // this methed is used to find current tuple is today or not if it is today's tuple we are asuming that today is working day
+            const res = await this.attendanceRepository.findOne({
+                where: { sps: { ps: { id: psId } } },
+                order: { createdon: 'DESC' },
+                select: { id: true, createdon: true },
+            });
+            if (res == null)
+                return false
+            const res_Date = new Date(res.createdon);
+            const curr_date = new Date();
+            logger.debug(`attendance checkTodayWorkingDayForPs response returned for psId: ${psId}`)
+            return (
+                res_Date.getFullYear() === curr_date.getFullYear() &&
+                res_Date.getMonth() === curr_date.getMonth() &&
+                res_Date.getDate() === curr_date.getDate()
+            );
+        } catch (error) {
+            const err_message = (typeof error == 'object' ? error.message : error);
+            logger.error(`error in Attendance checkTodayWorkingDayForPs service for psId:${psId} > error: ${err_message}`);
+            return false;
+        }
+    }
+
+    async markAttendanceByAdmin(reqUser: ReqUserType, markAttendanceByAdminDto: MarkAttendanceByAdminDto) {
+        try {
+            logger.debug(`reqUser: ${reqUser.username} attendance markAttendanceByAdmin method started`)
+            if (reqUser.role == RType.ADMIN) {
+                const ps_admin = await this.psMasterRepository.findOne({
+                    where: {
+                        id: markAttendanceByAdminDto.psId,
+                        status: PSSType.IN_PROGRESS,
+                        college: { adminmaster: { status: SType.ACTIVE, usermaster: { id: reqUser.sub } } }
+                    }
+                });
+                if (ps_admin == null)
+                    throw "Admin not found for given PS!."
+            }
+            const students = []
+            let D = new Date(moment(markAttendanceByAdminDto.date, 'YYYY-MM-DD').format('YYYY-MM-DDTHH:mm:ss.SSS[Z]'));
+            let tomorrowD = new Date(D.getTime() + 24 * 60 * 60 * 1000);
+            for (let i = 0; i < markAttendanceByAdminDto.students.length; i++) {
+                const student_ps = await this.studentPsRepository.findOne({
+                    where: {
+                        status: SType.ACTIVE,
+                        ps: { id: markAttendanceByAdminDto.psId },
+                        student: { usermaster: { username: Like(markAttendanceByAdminDto.students[i].username) } }
+                    }
+                })
+                if (student_ps) {
+                    const ps_attendance = await this.attendanceRepository
+                        .createQueryBuilder('a')
+                        .leftJoinAndSelect('a.sps', 'sps')
+                        .leftJoinAndSelect('sps.student', 's')
+                        .leftJoinAndSelect('s.usermaster', 'u')
+                        .where('a.createdon BETWEEN :D AND :tomorrowD', { D, tomorrowD })
+                        .andWhere('u.username LIKE :username', { username: markAttendanceByAdminDto.students[i].username })
+                        .select(['a.id as id'])
+                        .getRawOne()
+                    const date = new Date(moment().format('YYYY-MM-DDTHH:mm:ss.SSS[Z]'))
+                    date.setFullYear(D.getFullYear(), D.getMonth(), D.getDate())
+                    if (ps_attendance != undefined || ps_attendance != null) {
+                        const student_attendance = await this.attendanceRepository.findOne({ where: { id: ps_attendance.id } });
+                        // update the student attendance
+                        student_attendance.attendance = markAttendanceByAdminDto.students[i].attendance;
+                        student_attendance.updatedby = reqUser.username;
+                        student_attendance.updatedon = date;
+                        await this.attendanceRepository.save(student_attendance)
+                        logger.debug(`reqUser:${reqUser.username} attendance bulkMarkAttendanceByAdmin update success for student:- ${markAttendanceByAdminDto.students[i].username}`)
+                    } else {
+                        //insert the attendance for student
+                        const student_attendance = new Attendance()
+                        student_attendance.attendance = markAttendanceByAdminDto.students[i].attendance
+                        student_attendance.sps = { id: student_ps.id } as StudentPs;
+                        student_attendance.updatedby = reqUser.username;
+                        student_attendance.date = D;
+                        student_attendance.createdon = date;
+                        student_attendance.updatedon = date;
+                        await this.attendanceRepository.save(student_attendance)
+                        logger.debug(`reqUser:${reqUser.username} attendance bulkMarkAttendanceByAdmin insert success for student:- ${markAttendanceByAdminDto.students[i].username}`)
+                    }
+                } else {
+                    students.push(markAttendanceByAdminDto.students[i].username)
+                }
+            }
+            logger.debug(`reqUser: ${reqUser.username} attendance markAttendanceByAdmin response returned`)
+            return { Error: false, meaasge: RESPONSE_MESSAGE.ATTENDANCE_SUCCESS, payload: { dup: students } }
+        } catch (error) {
+            const err_message = (typeof error == 'object' ? error.message : error);
+            logger.error(`reqUser: ${reqUser.username} error: ${err_message} > error in Attendance markAttendanceByAdmin service`);
+            return { Error: true, message: err_message };
+        }
     }
 
     async markAbsentAttendanceAtEndOfDayCornJob() {

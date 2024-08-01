@@ -45,7 +45,7 @@ export class AdminMasterService {
             const adminMaster = new AdminMaster();
             adminMaster.name = adminMasterDto.name;
             adminMaster.usermaster = { id: user.payload.id } as UserMaster;
-            adminMaster.college = { id: adminMasterDto.collegeId} as College;
+            adminMaster.college = { id: adminMasterDto.collegeId } as College;
             adminMaster.updatedBy = requser.username;
             await this.adminMasterRepository.save(adminMaster);
 
@@ -62,7 +62,7 @@ export class AdminMasterService {
         try {
             logger.debug(`reqUser: ${requser.username} admin update service started`);
             const admin = await this.adminMasterRepository.findOne({ where: { id: adminMasterUpdateDto.id } })
-            if(admin == null)
+            if (admin == null)
                 throw ERROR_MESSAGES.USER_NOT_FOUND;
             const clg = await this.collegeService.findOne(requser.username, adminMasterUpdateDto.collegeId);
             if (clg.Error)
@@ -102,16 +102,18 @@ export class AdminMasterService {
     async getDashboardDetails(reqUser: ReqUserType, clgId: number) {
         try {
             logger.debug(`reqUser: ${reqUser.username} admin getDashboardDetails service started for clgId: ${clgId}`);
+            let collegeId: number = clgId;
             if (reqUser.role == RType.ADMIN) {
-                const admin = await this.adminMasterRepository.findOne({ where: { usermaster: { id: reqUser.sub }, college: { id: clgId } } });
+                const admin = await this.adminMasterRepository.findOne({ where: { usermaster: { id: reqUser.sub } }, relations: { college: true } });
                 if (admin == null)
                     throw "Admin not found for college"
+                collegeId = admin.college.id
             }
-            const ps = await this.psmasterService.findAllByCollege(reqUser, clgId);
-            const projects = await this.projectmasterService.findAllBycollege(reqUser, clgId, "DASHBOARD");
-            const students = await this.studentmasterService.findAllByCollege(reqUser, clgId, "DASHBOARD");
-            const project_progress = await this.projectprogressService.findTodayPPByClgId(reqUser.username, clgId)
-            const att = await this.attendanceService.getTodayPresent(reqUser.username, clgId);
+            const ps = await this.psmasterService.findAllByCollege(reqUser, collegeId);
+            const projects = await this.projectmasterService.findAllBycollege(reqUser, collegeId, "DASHBOARD");
+            const students = await this.studentmasterService.findAllByCollege(reqUser, collegeId, "DASHBOARD");
+            const project_progress = await this.projectprogressService.findTodayPPByClgId(reqUser.username, collegeId)
+            const att = await this.attendanceService.getTodayPresent(reqUser.username, collegeId);
             let data = {
                 activeps: ps.payload?.filter(i => i.status == PSSType.IN_PROGRESS).length || 0,
                 activestudents: students.payload?.filter((i) => !i.usermaster.username.toLowerCase().includes('virtualstudent')).length || 0,

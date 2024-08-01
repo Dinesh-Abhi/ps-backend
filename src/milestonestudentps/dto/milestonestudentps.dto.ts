@@ -53,8 +53,6 @@ export class AddMakrsToMilestoneByMentor {
 
     @ApiProperty({ type: Number })
     @IsNumber()
-    @Max(100)
-    @Min(0)
     @IsNotEmpty()
     marks: number
 }

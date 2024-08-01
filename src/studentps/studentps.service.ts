@@ -381,8 +381,9 @@ export class StudentPsService {
             };
             await randomDelay();
             const s_set = new Set(groupEnrollDto.students);
-            if (groupEnrollDto.students.length == 0 || s_set.size != groupEnrollDto.students.length)
+            if (groupEnrollDto.students.length == 0 || s_set.size != groupEnrollDto.students.length || ps.groupcount != s_set.size){
                 throw `Students ${ERROR_MESSAGES.DUP_ENTRY}`;
+            }
             let studentps: any = await this.studentPsRepository.find({
                 where: {
                     status: SType.ACTIVE,
@@ -1300,20 +1301,30 @@ export class StudentPsService {
                 "students": kmcecollegedata
             });
             if (kmitcollegedata.length > 0) {
-                logger.info(`reqUser: TrinetraCron > kmit_ps_attendance: ${JSON.stringify(kmitcollegedata)} > kmit_ps_attendance_length: ${kmitcollegedata.length} > kmit_send_data: ${JSON.stringify(kmit_send_data)}`)
-                const SendDataRes = await axios.post(`${process.env.KMIT_TRINETRA_URL}`, kmit_send_data);
-                responses.push({ kmit: SendDataRes.data })
-                logger.info(`reqUser: TrinetraCron > kmit_returned > ${JSON.stringify(SendDataRes.data)}`);
+                try {
+                    logger.info(`reqUser: TrinetraCron > kmit_ps_attendance: ${JSON.stringify(kmitcollegedata)} > kmit_ps_attendance_length: ${kmitcollegedata.length} > kmit_send_data: ${JSON.stringify(kmit_send_data)}`)
+                    const SendDataRes = await axios.post(`${process.env.KMIT_TRINETRA_URL}`, kmit_send_data);
+                    responses.push({ kmit: SendDataRes.data })
+                    logger.info(`reqUser: TrinetraCron > kmit_returned > ${JSON.stringify(SendDataRes.data)}`);
+                } catch (error) {
+                    responses.push({ kmit: (typeof error == 'object' ? error?.message : error) })
+                    logger.warn(`unable to run TrinetraCron for KMIT college to sync attendance to sanjaya response ${(typeof error == 'object' ? error?.message : error)}`)
+                }
             } else {
                 logger.info(`reqUser: TrinetraCron > syncAttendanceToTrinetraCronJob log > kmit_attendance_length: ${kmitcollegedata.length} --attendance null `);
                 responses.push({ kmit: "data null" })
             }
 
             if (ngitcollegedata.length > 0) {
-                logger.info(`reqUser: TrinetraCron > ngit_ps_attendance: ${JSON.stringify(ngitcollegedata)} > ngit_ps_attendance_length: ${ngitcollegedata.length} > ngit_send_data: ${JSON.stringify(ngit_send_data)}`)
-                const SendDataRes = await axios.post(`${process.env.NGIT_TRINETRA_URL}`, ngit_send_data);
-                responses.push({ ngit: SendDataRes.data })
-                logger.info(`reqUser: TrinetraCron > ngit_returned > ${SendDataRes.data}`);
+                try {
+                    logger.info(`reqUser: TrinetraCron > ngit_ps_attendance: ${JSON.stringify(ngitcollegedata)} > ngit_ps_attendance_length: ${ngitcollegedata.length} > ngit_send_data: ${JSON.stringify(ngit_send_data)}`)
+                    const SendDataRes = await axios.post(`${process.env.NGIT_TRINETRA_URL}`, ngit_send_data);
+                    responses.push({ ngit: SendDataRes.data })
+                    logger.info(`reqUser: TrinetraCron > ngit_returned > ${SendDataRes.data}`);
+                } catch (error) {
+                    responses.push({ ngit: (typeof error == 'object' ? error?.message : error) })
+                    logger.warn(`unable to run TrinetraCron for NGIT college to sync attendance to sanjaya response ${(typeof error == 'object' ? error?.message : error)}`)
+                }
             } else {
                 logger.info(`reqUser: TrinetraCron > syncAttendanceToTrinetraCronJob log > ngit_ps_attendance_length: ${ngitcollegedata.length} --attendance null `);
                 responses.push({ ngit: "data null" })
@@ -1321,10 +1332,15 @@ export class StudentPsService {
 
             logger.info("We are not syncing ps attendane for kmen and kmce students");
             if (kmeccollegedata.length > 0) {
-                logger.info(`reqUser: TrinetraCron > kmec_ps_attendance: ${JSON.stringify(kmeccollegedata)} > kmec_ps_attendance_length: ${kmeccollegedata.length} > kmec_send_data: ${JSON.stringify(kmec_send_data)}`)
-                const SendDataRes = await axios.post(`${process.env.KMEC_TRINETRA_URL}`, kmec_send_data);
-                responses.push({ kmec: SendDataRes.data })
-                logger.info(`reqUser: TrinetraCron > kmec_returned > ${SendDataRes.data}`);
+                try {
+                    logger.info(`reqUser: TrinetraCron > kmec_ps_attendance: ${JSON.stringify(kmeccollegedata)} > kmec_ps_attendance_length: ${kmeccollegedata.length} > kmec_send_data: ${JSON.stringify(kmec_send_data)}`)
+                    const SendDataRes = await axios.post(`${process.env.KMEC_TRINETRA_URL}`, kmec_send_data);
+                    responses.push({ kmec: SendDataRes.data })
+                    logger.info(`reqUser: TrinetraCron > kmec_returned > ${SendDataRes.data}`);
+                } catch (error) {
+                    responses.push({ kmec: (typeof error == 'object' ? error?.message : error) })
+                    logger.warn(`unable to run TrinetraCron for KMEC college to sync attendance to sanjaya response ${(typeof error == 'object' ? error?.message : error)}`)
+                }
             } else {
                 logger.info(`reqUser: TrinetraCron > syncAttendanceToTrinetraCronJob log > kmec_attendance_length: ${kmeccollegedata.length} --attendance null `);
                 responses.push({ kmec: "data null" })
@@ -1332,10 +1348,14 @@ export class StudentPsService {
 
             // if (kmcecollegedata.length > 0) {
             //     logger.info(`reqUser: TrinetraCron > kmce_ps_attendance: ${JSON.stringify(kmcecollegedata)} > kmce_ps_attendance_length: ${kmcecollegedata.length} > kmce_send_data: ${JSON.stringify(kmce_send_data)}`)
-            //     const SendDataRes = await axios.post(`${process.env.TRINETRA_URL}`, kmce_send_data);
+            //     const SendDataRes = await axios.post(`${process.env.KMCE_TRINETRA_URL}`, kmce_send_data);
             //     responses.push({ kmce: SendDataRes.data })
             //     logger.info(`reqUser: TrinetraCron > 
             //     kmce_returned > ${SendDataRes.data}`);
+            // } catch(error){
+            //         responses.push({ kmce: (typeof error == 'object' ? error?.message : error) })
+            //         logger.warn(`unable to run TrinetraCron for KMCE college to sync attendance to sanjaya response ${(typeof error == 'object' ? error?.message : error)}`)
+            //     }
             // } else {
             //     logger.info(`reqUser: TrinetraCron > syncAttendanceToTrinetraCronJob log > kmce_attendance_length: ${kmcecollegedata.length} --attendance null `);
             //     responses.push({ kmce: "data null" })
@@ -1436,19 +1456,19 @@ export class StudentPsService {
                     try {
                         SendDataRes = await axios.post(`${process.env.KMIT_TRINETRA_URL}`, send_data);
                     } catch (error) {
-                        console.error('Error sending data:', error);
+                        logger.error('Error sending data:', error);
                     }
                 } else if (syncPastDateAttendanceDto.code == "NGIT") {
                     try {
                         SendDataRes = await axios.post(`${process.env.NGIT_TRINETRA_URL}`, send_data);
                     } catch (error) {
-                        console.error('Error sending data:', error);
+                        logger.error('Error sending data:', error);
                     }
                 } else if (syncPastDateAttendanceDto.code == "KMEC") {
                     try {
                         SendDataRes = await axios.post(`${process.env.KMEC_TRINETRA_URL}`, send_data);
                     } catch (error) {
-                        console.error('Error sending data:', error);
+                        logger.error('Error sending data:', error);
                     }
                 } else {
                     logger.info(`reqUser: ${reqUsername} syncPastDateAttendance > log > attendance_length: ${collegedata.length} --attendance null `);

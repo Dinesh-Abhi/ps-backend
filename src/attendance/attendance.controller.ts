@@ -6,7 +6,7 @@ import { RolesGuard } from 'src/auth/roles.guard';
 import { Roles } from 'src/auth/roles.decorator';
 import { ApiResponse, ApiSecurity, ApiTags } from '@nestjs/swagger';
 import { Cron } from '@nestjs/schedule';
-import { BulkMarkAttendanceDto } from './dto/attendance.dto';
+import { MarkAttendanceByAdminDto, BulkMarkAttendanceDto } from './dto/attendance.dto';
 
 @ApiTags('attendance')
 @ApiSecurity("JWT-auth")
@@ -14,6 +14,8 @@ import { BulkMarkAttendanceDto } from './dto/attendance.dto';
 export class AttendanceController {
     constructor(private readonly attendanceService: AttendanceService) { }
 
+
+    // this is for daily attendance mark service
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Roles('MENTOR')
     @Post('bulkmarkattendance')
@@ -27,14 +29,28 @@ export class AttendanceController {
         return result;
     }
 
+    // this is for daily attendance mark service within PS only, to sync use sync attendance service which is in studentps file
     @UseGuards(JwtAuthGuard, RolesGuard)
-    @Roles('ADMIN','SUPERADMIN')
+    @Roles('ADMIN')
+    @Post('markattendancebyadmin')
+    @ApiResponse({ status: 201, description: 'The record has been successfully fetched.' })
+    @ApiResponse({ status: 403, description: 'Forbidden.' })
+    @UsePipes(new ValidationPipe())
+    async markAttendanceByAdmin(@Request() req, @Body() markAttendanceByAdminDto: MarkAttendanceByAdminDto) {
+        logger.debug(`reqUser: ${req.user.username} Attendance markAttendanceByAdmin is calling with body ${JSON.stringify(markAttendanceByAdminDto)}`);
+        const result = await this.attendanceService.markAttendanceByAdmin(req.user, markAttendanceByAdminDto);
+        // logger.debug(`reqUser: ${req.user.username} return in Attendance bulkMarkAttendance controller > service response: ${(result.Error ? `error: ${result.message}` : `${result.message} and dub_count: ${result.payload.dup.length}`)}`)
+        return result;
+    }
+
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Roles('ADMIN', 'SUPERADMIN')
     @Get('allstudentsattendance/:psId')
     @ApiResponse({ status: 201, description: 'The record has been successfully fetched.' })
     @ApiResponse({ status: 403, description: 'Forbidden.' })
     async getAllStudentsAttendance(@Request() req, @Param('psId', ParseIntPipe) psId: number) {
         logger.debug(`reqUser: ${req.user.username} Attendance getAllStudentsAttendance is calling with psId: ${psId}`);
-        const result = await this.attendanceService.getAllStudentsAttendance(req.user,psId);
+        const result = await this.attendanceService.getAllStudentsAttendance(req.user, psId);
         logger.debug(`reqUser: ${req.user.username} > return in Attendance getAllStudentsAttendance controller > service response: ${(result.Error ? `error: ${result.message}` : `Students_count: ${result.payload.length}`)}`);
         return result;
     }

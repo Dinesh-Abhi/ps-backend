@@ -146,7 +146,7 @@ export class PsMasterService {
         try {
             logger.debug(`reqUser: ${reqUser.username} PsMaster findAllByCollege service started`);
             if (reqUser.role == RType.ADMIN) {
-                const admin = await this.psRepository.findOne({ where: { college: { id: collegeId, adminmaster: { usermaster: { id: reqUser.sub } } } } });
+                const admin = await this.adminMasterRepository.findOne({ where: { college: { id: collegeId, adminmaster: { usermaster: { id: reqUser.sub } } } } });
                 if (admin == null)
                     throw "Admin not found for college"
             }

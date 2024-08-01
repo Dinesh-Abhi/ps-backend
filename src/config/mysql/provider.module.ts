@@ -17,7 +17,7 @@ import { MysqlService } from './mysql.service';
         timezone: '+05:30',
         autoLoadEntities: true,
         charset: 'latin1',
-        synchronize: true,
+        synchronize: false,
         logging: ["error"],
         logger: "file",
         migrationsRun: false,

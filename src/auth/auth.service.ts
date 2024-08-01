@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { jwtConstants } from './jwt.constants';
 import { TokenService } from './token.service';
@@ -9,6 +9,8 @@ import { AuditLogService } from 'src/auditlog/auditlog.service';
 import { PSSType, RType, SType } from 'src/enums';
 import { UserMasterService } from 'src/usermaster/user-master.service';
 import { ERROR_MESSAGES, AUDIT_LOG } from 'src/constants';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Cache } from 'cache-manager';
 
 @Injectable()
 export class AuthService {
@@ -17,8 +19,9 @@ export class AuthService {
     private userMasterService: UserMasterService,
     private jwtService: JwtService,
     private tokenService: TokenService,
-    private readonly auditLogService: AuditLogService
-
+    private readonly auditLogService: AuditLogService,
+    @Inject(CACHE_MANAGER)
+    private cacheManager: Cache,
   ) {
     this.filepath = path.basename(__filename);
   }
@@ -48,23 +51,24 @@ export class AuthService {
       const log = await this.auditLogService.create(user.username, auditlogdata);
       if (log.Error)
         throw log.message;
-      let payload = {};
-      payload = {
+      let payload = {
         username: user.username,
         sub: user.id,
         role: user.role,
         name: user.name
       };
       const refreshToken = this.tokenService.generateRefreshToken();
-      // Save the refresh token to the user record or any other secure storage mechanism
       const save = await this.userMasterService.saveRefreshToken(user.username, user.id, refreshToken);
       if (save.Error)
         throw save.message;
 
+      const jwttoken = this.jwtService.sign(payload, { secret: jwtConstants.secret, expiresIn: jwtConstants.expirationTime });
+      await this.cacheManager.set(payload.username, jwttoken);
+
       if (user.role == RType.STUDENT) {
         let res: any = {
           Error: false, // Indicates whether there is an error (in this case, set to false)
-          access_token: this.jwtService.sign(payload, { secret: jwtConstants.secret, expiresIn: jwtConstants.expirationTime }), // JWT access token
+          access_token: jwttoken, // JWT access token
           refresh_token: refreshToken, // Refresh token
           studentId: user.student.id, // Student ID
           email: user.student.email,
@@ -98,7 +102,7 @@ export class AuthService {
 
         return {
           Error: false,
-          access_token: this.jwtService.sign(payload, { secret: jwtConstants.secret, expiresIn: jwtConstants.expirationTime, }),// Set the expiration time
+          access_token: jwttoken,// Set the expiration time
           refresh_token: refreshToken,
           collegeId: user.mentor.college.id,
           collegecode: user.mentor.college.code,
@@ -112,7 +116,7 @@ export class AuthService {
 
         return {
           Error: false,
-          access_token: this.jwtService.sign(payload, { secret: jwtConstants.secret, expiresIn: jwtConstants.expirationTime, }),// Set the expiration time
+          access_token: jwttoken,// Set the expiration time
           refresh_token: refreshToken,
           evaluatorId: user.evaluator.id,
         };
@@ -123,7 +127,7 @@ export class AuthService {
 
         return {
           Error: false,
-          access_token: this.jwtService.sign(payload, { secret: jwtConstants.secret, expiresIn: jwtConstants.expirationTime, }),// Set the expiration time
+          access_token: jwttoken,// Set the expiration time
           refresh_token: refreshToken,
           adminId: user.admin.id,
           collegeId: user.admin.college.id,
@@ -136,7 +140,7 @@ export class AuthService {
 
         return {
           Error: false,
-          access_token: this.jwtService.sign(payload, { secret: jwtConstants.secret, expiresIn: jwtConstants.expirationTime, }),// Set the expiration time
+          access_token: jwttoken,// Set the expiration time
           refresh_token: refreshToken,
           coordinatorId: user.coordinator.id,
           collegeId: user.coordinator.college.id,
@@ -149,7 +153,7 @@ export class AuthService {
 
         return {
           Error: false,
-          access_token: this.jwtService.sign(payload, { secret: jwtConstants.secret, expiresIn: jwtConstants.expirationTime, }),// Set the expiration time
+          access_token: jwttoken,// Set the expiration time
           refresh_token: refreshToken,
         };
       }
@@ -163,21 +167,21 @@ export class AuthService {
   async logout(user: any) {
     try {
       // Save the refresh token to the user record or any other secure storage mechanism
-      const response = await this.userMasterService.deleteRefreshToken(user.id);
-      if (!response || response.Error)
-        throw response.message;
-      const auditlogdata = {
-        userId: user.sub,
-        info: user.username + ' has logged out.',
-        action: AUDIT_LOG.Logout
-      }
-      const log = await this.auditLogService.create(user.username, auditlogdata);
-      if (!log || log.Error)
-        throw log.message;
+      // const response = await this.userMasterService.deleteRefreshToken(user.id);
+      // if (!response || response.Error)
+      //   throw response.message;
+      // const auditlogdata = {
+      //   userId: user.sub,
+      //   info: user.username + ' has logged out.',
+      //   action: AUDIT_LOG.Logout
+      // }
+      // const log = await this.auditLogService.create(user.username, auditlogdata);
+      // if (!log || log.Error)
+      //   throw log.message;
+      await this.cacheManager.del(user.username)
       return {
         Error: false,
-        access_token: "",
-        refresh_token: "",
+        message: "logout successfull"
       };
     } catch (error) {
       logger.error(`${error} > error in logout`);

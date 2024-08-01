@@ -139,19 +139,34 @@ export class AddOrUpdateGithubLinkDto {
     link: string;
 }
 
-export class SyncPastDateAttendanceDto{
-    previousdate:string    //YYYY-MM-DD
-    code:string    //KMIT or NGIT
+export class SyncPastDateAttendanceDto {
+    @ApiProperty({ type: String, format: 'YYYY-MM-DD' })
+    @IsNotEmpty()
+    @IsString()
+    previousdate: string    //YYYY-MM-DD
+    @ApiProperty({ type: String, description: 'college code' })
+    @IsNotEmpty()
+    @IsString()
+    code: string    //KMIT or NGIT
 }
 
-export class SyncPastDateAttendanceBetweenDatesDto{
-    startDate:string 
-    endDate:string
-    code:string
+export class SyncPastDateAttendanceBetweenDatesDto {
+    @ApiProperty({ type: String, format: 'YYYY-MM-DD' })
+    @IsNotEmpty()
+    @IsString()
+    startDate: string
+    @ApiProperty({ type: String, format: 'YYYY-MM-DD' })
+    @IsNotEmpty()
+    @IsString()
+    endDate: string
+    @ApiProperty({ type: String, description: 'college code' })
+    @IsNotEmpty()
+    @IsString()
+    code: string
 }
 
 
-export class AddReviewCommentDto{
+export class AddReviewCommentDto {
     @ApiProperty({ type: Number })
     @IsNotEmpty()
     @IsNumber()
@@ -163,7 +178,7 @@ export class AddReviewCommentDto{
     comment: string;
 }
 
-export class AddMentorReviewCommentDto{
+export class AddMentorReviewCommentDto {
     @ApiProperty({ type: Number })
     @IsNotEmpty()
     @IsNumber()

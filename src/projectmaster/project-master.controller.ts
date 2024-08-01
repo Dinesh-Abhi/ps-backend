@@ -120,7 +120,6 @@ export class ProjectMasterController {
     @ApiResponse({ status: 201, description: 'The record has been successfully created fetched.' })
     @ApiResponse({ status: 403, description: 'Forbidden.' })
     async getActiveProjectListByPs(@Request() req, @Param('psId', ParseIntPipe) psId: number) {
-        console.log(req?.headers['user-agent'])
         logger.debug(`reqUser: ${req.user.username} ProjectMaster getActiveProjectListByPs is calling with params psId:${psId}`)
         const result = await this.projectMasterService.getActiveProjectListByPs(req.user, psId)
         logger.debug(`reqUser: ${req.user.username} return in ProjectMaster getActiveProjectListByPs controller > service response: ${(result.Error ? `error: ${result.message}` : `project_count: ${result.payload.length}`)}`);

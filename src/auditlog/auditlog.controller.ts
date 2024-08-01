@@ -14,7 +14,7 @@ export class AuditLogController {
     constructor(private readonly auditLogService: AuditLogService) { }
 
     @UseGuards(JwtAuthGuard, RolesGuard)
-    @Roles('ADMIN')
+    @Roles('SUPERADMIN')
     @Get()
     @ApiResponse({ status: 201, description: 'The All records fetched successfully.' })
     @ApiResponse({ status: 403, description: 'Forbidden.' })

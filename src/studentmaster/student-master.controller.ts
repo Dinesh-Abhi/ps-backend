@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, ParseIntPipe, Post, Put, Request, UseGuards, UsePipes, ValidationPipe } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseIntPipe, Post, Put, Request, UseGuards, UseInterceptors, UsePipes, ValidationPipe } from '@nestjs/common';
 import { StudentMasterService } from './student-master.service';
 import { ApiResponse, ApiSecurity, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
@@ -6,10 +6,11 @@ import { RolesGuard } from 'src/auth/roles.guard';
 import { Roles } from 'src/auth/roles.decorator';
 import { CreateVirtualStudentsDto, StudentMasterBulkDto, StudentMasterUpdateDto, StudentProfileUpdateDto } from './dto/student-master.dto';
 import logger from 'src/loggerfile/logger';
+import { CachingInterceptor } from 'src/config/caching.interceptor';
 
 @ApiTags('Student')
 @ApiSecurity("JWT-auth")
-
+@UseInterceptors(CachingInterceptor)
 @Controller('studentmaster')
 export class StudentMasterController {
     constructor(private readonly studentMasterService: StudentMasterService) { }

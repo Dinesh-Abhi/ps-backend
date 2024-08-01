@@ -28,7 +28,7 @@ export class CollegeController {
     }
 
     @UseGuards(JwtAuthGuard, RolesGuard)
-    @Roles('SUPERADMIN','ADMIN')
+    @Roles('SUPERADMIN')
     @Get()
     @ApiResponse({ status: 201, description: 'The All records fetched successfully.' })
     @ApiResponse({ status: 403, description: 'Forbidden.' })
@@ -39,17 +39,17 @@ export class CollegeController {
         return result;
     }
 
-    @UseGuards(JwtAuthGuard, RolesGuard)
-    @Roles('ADMIN')
-    @Get(':clgId')
-    @ApiResponse({ status: 201, description: 'The record fetched successfully.' })
-    @ApiResponse({ status: 403, description: 'Forbidden.' })
-    async findOne(@Request() req, @Param('clgId', ParseIntPipe) clgId: number) {
-        logger.debug(`reqUser: ${req.user.username} college findOne is calling with params collegeId: ${clgId}`);
-        const result = await this.collegeService.findOne(req.user.username, clgId);
-        logger.debug(`reqUser: ${req.user.username} return in controller > service response: ${(result.Error ? `error: ${result.message}` : `Requested data sent`)}`);
-        return result;
-    }
+    // @UseGuards(JwtAuthGuard, RolesGuard)
+    // @Roles('ADMIN')
+    // @Get(':clgId')
+    // @ApiResponse({ status: 201, description: 'The record fetched successfully.' })
+    // @ApiResponse({ status: 403, description: 'Forbidden.' })
+    // async findOne(@Request() req, @Param('clgId', ParseIntPipe) clgId: number) {
+    //     logger.debug(`reqUser: ${req.user.username} college findOne is calling with params collegeId: ${clgId}`);
+    //     const result = await this.collegeService.findOne(req.user, clgId);
+    //     logger.debug(`reqUser: ${req.user.username} return in controller > service response: ${(result.Error ? `error: ${result.message}` : `Requested data sent`)}`);
+    //     return result;
+    // }
 
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Roles('SUPERADMIN')

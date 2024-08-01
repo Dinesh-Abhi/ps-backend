@@ -54,6 +54,9 @@ import { MilestonestudentpsModule } from './milestonestudentps/milestonestudentp
 import { MilestoneStudentPs } from './milestonestudentps/milestonestudentps.entity';
 import { EvaluationSchedule } from './evaluationschedule/evaluationschedule.entity';
 import { EvaluationscheduleModule } from './evaluationschedule/evaluationschedule.module';
+import { CachingInterceptor } from './config/caching.interceptor';
+import { BrowserAllowInterceptor } from './config/alllow-browser.interceptor';
+
 
 @Module({
   imports: [
@@ -61,7 +64,7 @@ import { EvaluationscheduleModule } from './evaluationschedule/evaluationschedul
       ttl: 5, // 5 seconds
       limit: 60, // 60 requests per ttl period
     }),
-    TypeOrmModule.forFeature([AdminMaster, UserMaster, College, AuditLog, PsMaster, ProjectMaster, ProjectProgress, MentorMaster, EvaluatorMaster,EvaluationSchedule, SuperAdminMaster, GroupMaster, CoordinatorMaster, Attendance, StudentPs, Milestone, MilestoneStudentPs]),
+    TypeOrmModule.forFeature([AdminMaster, UserMaster, College, AuditLog, PsMaster, ProjectMaster, ProjectProgress, MentorMaster, EvaluatorMaster, EvaluationSchedule, SuperAdminMaster, GroupMaster, CoordinatorMaster, Attendance, StudentPs, Milestone, MilestoneStudentPs]),
     ScheduleModule.forRoot(),
     EventEmitterModule.forRoot(),
     ConfigAppModule, // Use the ConfigModule
@@ -102,6 +105,14 @@ import { EvaluationscheduleModule } from './evaluationschedule/evaluationschedul
     {
       provide: APP_INTERCEPTOR,
       useClass: JwtExpiredFilter,
+    },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: CachingInterceptor,
+    },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: BrowserAllowInterceptor,
     },
     AppService, MysqlService, JwtService]
 })

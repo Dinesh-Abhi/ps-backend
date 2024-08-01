@@ -1,4 +1,4 @@
-import { Controller, Post, Body, UseGuards, Request, Get } from '@nestjs/common';
+import { Controller, Post, Body, UseGuards, Request, Get, Inject } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { CustomJwtAuthGuard } from './custom-jwt-auth.guard';
 import { RefreshDto } from './dto/refresh.dto';
@@ -8,6 +8,8 @@ import { ApiResponse, ApiSecurity, ApiTags } from '@nestjs/swagger';
 import { HttpService } from '@nestjs/axios';
 import logger from 'src/loggerfile/logger';
 const axios = require("axios");
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Cache } from 'cache-manager';
 
 @ApiTags('LogIn')
 @ApiSecurity("JWT-auth")
@@ -16,23 +18,16 @@ const axios = require("axios");
 export class AuthController {
   constructor(
     private readonly authService: AuthService,
-    private readonly httpService: HttpService
+    private readonly httpService: HttpService,
+    @Inject(CACHE_MANAGER)
+    private cacheManager: Cache,
   ) { }
-
-  @Post('refresh')
-  @ApiResponse({ status: 201, description: 'The token refresh successfully.' })
-  @ApiResponse({ status: 403, description: 'Forbidden.' })
-  async refreshAccessToken(@Body() refreshDto: RefreshDto) {
-    const accessToken = await this.authService.refreshAccessToken(refreshDto.refreshToken);
-    return { access_token: accessToken };
-  }
 
   @UseGuards(LocalAuthGuard)
   @Post('login')
   @ApiResponse({ status: 201, description: 'The login successfully.' })
   @ApiResponse({ status: 403, description: 'Forbidden.' })
   async login(@Request() req) {
-    console.log(req?.headers['user-agent'])
     // try {
     //   const response = await axios.post(
     //     `https://www.google.com/recaptcha/api/siteverify?secret=${process.env.CAPTCHA_SECRET_KEY}&response=${req.body.token}`
@@ -56,15 +51,17 @@ export class AuthController {
   @ApiResponse({ status: 201, description: 'logout successfully.' })
   @ApiResponse({ status: 403, description: 'Forbidden.' })
   @UseGuards(CustomJwtAuthGuard)
-  logout(@Request() req) {
-    return this.authService.logout(req.user);
-  }
-
-  @UseGuards(JwtAuthGuard)
-  @Get('profile')
-  @ApiResponse({ status: 201, description: 'The request successfully.' })
-  @ApiResponse({ status: 403, description: 'Forbidden.' })
-  getProfile(@Request() req) {
-    return req.user;
+  async logout(@Request() req) {
+    const cachedToken = await this.cacheManager.get(req.user.username);
+    const token = req?.headers?.authorization;
+    if (cachedToken == token){
+      return this.authService.logout(req.user);
+    }
+    else{
+      return {
+        Error: false,
+        message: "logout successfull"
+      };
+    }
   }
 }

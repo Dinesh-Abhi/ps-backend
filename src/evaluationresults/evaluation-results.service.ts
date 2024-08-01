@@ -7,6 +7,7 @@ import { Repository } from 'typeorm';
 import { EvaluatorStudent } from 'src/evaluatorstudent/evaluator-student.entity';
 import { ERROR_MESSAGES, RESPONSE_MESSAGE } from 'src/constants';
 import { EvaluationType } from 'src/enums';
+import { ReqUserType } from 'src/all.formats';
 
 @Injectable()
 export class EvaluationResultsService {
@@ -45,10 +46,17 @@ export class EvaluationResultsService {
         }
     }
 
-    async createIndividual(reqUsername: string, createIndividualEvaluationResultDto: CreateEvaluationResultDto) {
+    async createIndividual(reqUser: ReqUserType, createIndividualEvaluationResultDto: CreateEvaluationResultDto) {
         try {
-            logger.debug(`reqUser: ${reqUsername} EvaluationResults createIndividual service started`);
-            const estudent = await this.evaluatorStudentRepository.findOne({ where: { id: createIndividualEvaluationResultDto.estudentId }, relations: { evaluationschedule: true } });
+            logger.debug(`reqUser: ${reqUser.username} EvaluationResults createIndividual service started`);
+            const estudent = await this.evaluatorStudentRepository.findOne({
+                where: {
+                    id: createIndividualEvaluationResultDto.estudentId,
+                    evaluator: {
+                        usermaster: { id: reqUser.sub }
+                    }
+                }, relations: { evaluationschedule: true }
+            });
             if (estudent != null) {
                 const start_time = new Date(estudent?.evaluationschedule.start);
                 start_time.setUTCHours(0, 0, 0, 0);
@@ -58,31 +66,36 @@ export class EvaluationResultsService {
                 today_time.setUTCHours(0, 0, 0, 0);
                 if (start_time.getTime() <= today_time.getTime()) {
                     if (today_time.getTime() <= end_time.getTime()) {
-                        await this.create(reqUsername, createIndividualEvaluationResultDto);
+                        await this.create(reqUser.username, createIndividualEvaluationResultDto);
                     } else {
                         throw ERROR_MESSAGES.EVALUATION_UPLOAD_END
                     }
                 } else {
                     throw ERROR_MESSAGES.EVALUATION_UPLOAD_NOT_START
                 }
+            } else {
+                throw "Student not found for Evaluator"
             }
-            logger.debug(`reqUser: ${reqUsername} EvaluationResults createIndividual service returned`);
+            logger.debug(`reqUser: ${reqUser.username} EvaluationResults createIndividual service returned`);
             return { Error: false, message: RESPONSE_MESSAGE.SUBMIT };
         } catch (error) {
             const err_message = (typeof error == 'object' ? error.message : error);
-            logger.error(`reqUser: ${reqUsername} error: ${err_message} > error in EvaluationResults createIndividual service`);
+            logger.error(`reqUser: ${reqUser.username} error: ${err_message} > error in EvaluationResults createIndividual service`);
             return { Error: true, message: err_message };
         }
     }
 
-    async createGroup(reqUsername: string, createGroupResultDto: CreateGroupResultDto) {
+    async createGroup(reqUser: ReqUserType, createGroupResultDto: CreateGroupResultDto) {
         try {
-            logger.debug(`reqUser: ${reqUsername} EvaluationResults createGroup service started`);
+            logger.debug(`reqUser: ${reqUser.username} EvaluationResults createGroup service started`);
             const dublicate: any[] = [];
             const evaluatorstudents = await this.evaluatorStudentRepository.find({
                 where: {
                     group: { id: createGroupResultDto.groupId },
-                    evaluationschedule: { id: createGroupResultDto.escheduleId }, type: EvaluationType.GROUPEVALUATION
+                    evaluationschedule: { id: createGroupResultDto.escheduleId }, type: EvaluationType.GROUPEVALUATION,
+                    evaluator: {
+                        usermaster: { id: reqUser.sub }
+                    }
                 },
                 relations: { evaluationschedule: true }
             })
@@ -110,7 +123,7 @@ export class EvaluationResultsService {
                             createEvaluationResultDto.estudentId = evaluatorstudents[i].id;
                             createEvaluationResultDto.grade = createGroupResultDto.grade;
                             createEvaluationResultDto.comments = createGroupResultDto.comments;
-                            await this.create(reqUsername, createEvaluationResultDto);
+                            await this.create(reqUser.username, createEvaluationResultDto);
                         }
                     } else {
                         throw ERROR_MESSAGES.EVALUATION_UPLOAD_END
@@ -118,29 +131,42 @@ export class EvaluationResultsService {
                 } else {
                     throw ERROR_MESSAGES.EVALUATION_UPLOAD_NOT_START
                 }
+            } else {
+                throw "Given group not found for Evaluator"
             }
 
-            logger.debug(`reqUser: ${reqUsername} EvaluationResults createGroup service returned with dublicate: [${dublicate}]`);
+            logger.debug(`reqUser: ${reqUser.username} EvaluationResults createGroup service returned with dublicate: [${dublicate}]`);
             return { Error: false, message: RESPONSE_MESSAGE.SUBMIT };
         } catch (error) {
             const err_message = (typeof error == 'object' ? error.message : error);
-            logger.error(`reqUser: ${reqUsername} error: ${err_message} > error in EvaluationResults createGroup service`);
+            logger.error(`reqUser: ${reqUser.username} error: ${err_message} > error in EvaluationResults createGroup service`);
             return { Error: true, message: err_message };
         }
     }
 
-    async updateResultComment(reqUsername: string, updateResultCommentDto: UpdateResultCommentDto) {
+    async updateResultComment(reqUser: ReqUserType, updateResultCommentDto: UpdateResultCommentDto) {
         try {
-            logger.debug(`reqUser: ${reqUsername} EvaluationResults updateResultComment service started`);
-            await this.evaluationResultRepository.update({id:updateResultCommentDto.id},{
-                comments:updateResultCommentDto.comments,
-                updatedby:reqUsername,
+            logger.debug(`reqUser: ${reqUser.username} EvaluationResults updateResultComment service started`);
+            const estudent = await this.evaluatorStudentRepository.findOne({
+                where: {
+                    id: updateResultCommentDto.id,
+                    evaluator: {
+                        usermaster: { id: reqUser.sub }
+                    }
+                }
+            });
+            if (estudent == null) {
+                throw "Student not found for Evaluator"
+            }
+            await this.evaluationResultRepository.update({ id: updateResultCommentDto.id }, {
+                comments: updateResultCommentDto.comments,
+                updatedby: reqUser.username,
             })
-            logger.debug(`reqUser: ${reqUsername} EvaluatorResults updateResultComment service returned`);
+            logger.debug(`reqUser: ${reqUser.username} EvaluatorResults updateResultComment service returned`);
             return { Error: false, message: RESPONSE_MESSAGE.UPDATED };
         } catch (error) {
             const err_message = (typeof error == 'object' ? error.message : error);
-            logger.error(`reqUser: ${reqUsername} error: ${err_message} > error in EvaluationResults updateResultComment service`);
+            logger.error(`reqUser: ${reqUser.username} error: ${err_message} > error in EvaluationResults updateResultComment service`);
             return { Error: true, message: err_message };
         }
     }
