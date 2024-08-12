@@ -19,9 +19,13 @@ export class EvaluationscheduleService {
     @InjectRepository(AdminMaster)
     private readonly adminMasterRepository: Repository<AdminMaster>,
   ) { }
-  async create(reqUsername: string, createEvaluationscheduleDto: CreateEvaluationscheduleDto) {
+  async create(reqUser: ReqUserType, createEvaluationscheduleDto: CreateEvaluationscheduleDto) {
     try {
-      logger.debug(`reqUser: ${reqUsername} Evaluationschedule create method started`)
+      logger.debug(`reqUser: ${reqUser.username} Evaluationschedule create method started`)
+      const admin = await this.adminMasterRepository.findOne({ where: { college: { adminmaster: { usermaster: { id: reqUser.sub } }, psm: { id: createEvaluationscheduleDto.psId } } } })
+      if (admin == null)
+        throw "Admin college is different from PS college";
+
       let schedule = await this.evaluationScheduleRepository.findOneBy({ name: Like(`${createEvaluationscheduleDto.name}%`), ps: { id: createEvaluationscheduleDto.psId } });
       if (schedule != null)
         throw `Schedule ${ERROR_MESSAGES.ALREADY_EXISTS} with given name`;
@@ -34,33 +38,39 @@ export class EvaluationscheduleService {
       schedule.name = createEvaluationscheduleDto.name;
       schedule.start = start_date;
       schedule.end = end_date;
+      // schedule.weightage = createEvaluationscheduleDto.weightage;
       schedule.ps = { id: createEvaluationscheduleDto.psId } as PsMaster;
-      schedule.updatedby = reqUsername;
+      schedule.updatedby = reqUser.username;
       await this.evaluationScheduleRepository.save(schedule)
 
-      logger.debug(`reqUser: ${reqUsername} Evaluationschedule create method returned`)
+      logger.debug(`reqUser: ${reqUser.username} Evaluationschedule create method returned`)
       return { Error: false, message: RESPONSE_MESSAGE.CREATED };
     } catch (error) {
       const error_message = (typeof error == 'object' ? error.message : error)
-      logger.error(`reqUser: ${reqUsername} error: ${error_message} > error in Evaluationschedule create method`);
+      logger.error(`reqUser: ${reqUser.username} error: ${error_message} > error in Evaluationschedule create method`);
       return { Error: true, message: error_message };
     }
   }
 
-  async update(reqUsername: string, updateEvaluationscheduleDto: UpdateEvaluationscheduleDto) {
+  async update(reqUser: ReqUserType, updateEvaluationscheduleDto: UpdateEvaluationscheduleDto) {
     try {
-      logger.debug(`reqUser: ${reqUsername} Evaluationschedule update method started`)
+      logger.debug(`reqUser: ${reqUser.username} Evaluationschedule update method started`);
+      const admin = await this.adminMasterRepository.findOne({ where: { college: { adminmaster: { usermaster: { id: reqUser.sub } }, psm: { evaluationschedule: { id: updateEvaluationscheduleDto.id } } } } })
+      if (admin == null)
+        throw "Admin college is different from PS college";
+
       await this.evaluationScheduleRepository.update({ id: updateEvaluationscheduleDto.id }, {
         name: updateEvaluationscheduleDto.name,
         start: updateEvaluationscheduleDto.start,
         end: updateEvaluationscheduleDto.end,
-        updatedby: reqUsername,
+        // weightage: updateEvaluationscheduleDto.weightage,
+        updatedby: reqUser.username,
       })
-      logger.debug(`reqUser: ${reqUsername} Evaluationschedule update method returned`)
+      logger.debug(`reqUser: ${reqUser.username} Evaluationschedule update method returned`)
       return { Error: false, message: RESPONSE_MESSAGE.UPDATED };
     } catch (error) {
       const error_message = (typeof error == 'object' ? error.message : error)
-      logger.error(`reqUser: ${reqUsername} error: ${error_message} > error in Evaluationschedule update method`);
+      logger.error(`reqUser: ${reqUser.username} error: ${error_message} > error in Evaluationschedule update method`);
       return { Error: true, message: error_message };
     }
   }
@@ -71,7 +81,7 @@ export class EvaluationscheduleService {
       if (reqUser.role == RType.ADMIN) {
         const admin = await this.adminMasterRepository.findOne({ where: { usermaster: { id: reqUser.sub }, college: { psm: { id: psId } } } });
         if (admin == null)
-          throw "Admin college and PS college is different"
+          throw "Admin college is different from PS college"
       }
       const data = await this.evaluationScheduleRepository.find({ where: { ps: { id: psId } } });
       logger.debug(`reqUser: ${reqUser.username} Evaluationschedule findSchedulesByPS method returned`)
@@ -87,7 +97,7 @@ export class EvaluationscheduleService {
     try {
       logger.debug(`reqUser: ${reqUser.username} Evaluationschedule findAllWorkingPsSchedulesByClg method started`)
       if (reqUser.role == RType.ADMIN) {
-        const admin = await this.adminMasterRepository.findOne({ where: { usermaster: { id: reqUser.sub }, college: { id : clgId} } });
+        const admin = await this.adminMasterRepository.findOne({ where: { usermaster: { id: reqUser.sub }, college: { id: clgId } } });
         if (admin == null)
           throw "Admin not found for college"
       }
@@ -106,15 +116,24 @@ export class EvaluationscheduleService {
     }
   }
 
-  async findAllWorkingPsSchedules(reqUsername: string,) {
+  async findAllWorkingPsSchedules(reqUser: ReqUserType,) {
     try {
-      logger.debug(`reqUser: ${reqUsername} Evaluationschedule findAllWorkingPsSchedules method started`)
-      const data = await this.evaluationScheduleRepository.find({ where: { ps: { status: PSSType.IN_PROGRESS } }, relations: { ps: true } });
-      logger.debug(`reqUser: ${reqUsername} Evaluationschedule findAllWorkingPsSchedules method returned`)
+      logger.debug(`reqUser: ${reqUser.username} Evaluationschedule findAllWorkingPsSchedules method started`);
+      let data: any
+      if (reqUser.role == RType.ADMIN) {
+        const admin = await this.adminMasterRepository.findOne({ where: { usermaster: { id: reqUser.sub } }, relations: { college: true } });
+        if (admin == null)
+          throw "Admin not found for college"
+        else
+          data = await this.evaluationScheduleRepository.find({ where: { ps: { status: PSSType.IN_PROGRESS, college: { id: admin.college.id } } }, relations: { ps: true } });
+      } else {
+        data = await this.evaluationScheduleRepository.find({ where: { ps: { status: PSSType.IN_PROGRESS } }, relations: { ps: true } });
+      }
+      logger.debug(`reqUser: ${reqUser.username} Evaluationschedule findAllWorkingPsSchedules method returned`)
       return { Error: false, payload: data };
     } catch (error) {
       const error_message = (typeof error == 'object' ? error.message : error)
-      logger.error(`reqUser: ${reqUsername} error: ${error_message} > error in Evaluationschedule findAllWorkingPsSchedules method`);
+      logger.error(`reqUser: ${reqUser.username} error: ${error_message} > error in Evaluationschedule findAllWorkingPsSchedules method`);
       return { Error: true, message: error_message };
     }
   }

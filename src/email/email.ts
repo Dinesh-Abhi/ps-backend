@@ -27,7 +27,7 @@ export class EmailService {
         <p>Dear ${username} </p><br/>
         <p>${otp} is your one time password (OTP). Please do not share the otp with others.</p>
         <p>Regards,</p><br/>
-        <p>Team {service provider name}</p>
+        <p>Team ${process.env.APP_NAME}</p>
       `,
         };
 
@@ -44,16 +44,16 @@ export class EmailService {
         }
     }
 
-    async sendpasswordEmail(reqUsername: string, studentUsername: string, studentName: string, studentPassword: string, studentEmail: string): Promise<any> {
+    async sendpasswordEmail(reqUsername: string, username: string, name: string, password: string, email: string): Promise<any> {
         const mailOptions = {
             from: `${process.env.APP_NAME} <${process.env.MAIL_SENDER}>`,
-            to: studentEmail, //reciver mail
+            to: email, //reciver mail
             subject: 'Your Project School Account credentials',
             html: `
-       <p>Dear ${studentName},</p>
+       <p>Dear ${name},</p>
         <p>Your account password for Project School has been changed successfully.</p>
-        <p>Your Username is: <strong>${studentUsername}</strong></p><br/>
-        <p>Your new password is: <strong>${studentPassword}</strong></p><br/>
+        <p>Your Username is: <strong>${username}</strong></p><br/>
+        <p>Your new password is: <strong>${password}</strong></p><br/>
         <p>Regards,</p>
         <p>Team ${process.env.APP_NAME}</p>
       `,
@@ -144,7 +144,7 @@ export class EmailService {
             </table></br>
             <p><strong>Note:</strong> Please remember to mark the attendance before <strong>6 P.M.</strong> Any student not marked will be considered absent after this time.</p>
             <p>Regards,</p>
-            <p>PS Team</p>
+            <p>Team ${process.env.APP_NAME}</p>
         `,
         };
 

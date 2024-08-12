@@ -131,9 +131,9 @@ export class MilestoneService {
             milestone.description = milestoneCreateDto.description;
             milestone.enable = milestoneCreateDto.enable;
             milestone.enabledate = milestoneCreateDto.enable ? new Date() : null;
-            milestone.lastdate = lastdate;
-            milestone.weightage = milestoneCreateDto.weightage;
+            milestone.lastdate = lastdate
             milestone.ps = { id: ps.id } as PsMaster;
+            milestone.weightage = milestoneCreateDto.weightage;
             milestone.createdby = requser.username;
             milestone.updatedby = requser.username;
             await this.mileStoneRepository.save(milestone);

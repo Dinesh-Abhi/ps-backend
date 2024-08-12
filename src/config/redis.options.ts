@@ -6,11 +6,11 @@ export const RedisOptions: CacheModuleAsyncOptions = {
   useFactory: async () => {
     const store = await redisStore({
       socket: {
-        // host: '172.20.36.47',
-        host:'localhost',
+        host: 'localhost',
         port: 6379,
       },
       database: 1,
+      ttl: 28800   // 8 hours
     });
     return {
       store: () => store,

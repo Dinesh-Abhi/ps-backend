@@ -14,7 +14,6 @@ import { MarkAttendanceByAdminDto, BulkMarkAttendanceDto } from './dto/attendanc
 export class AttendanceController {
     constructor(private readonly attendanceService: AttendanceService) { }
 
-
     // this is for daily attendance mark service
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Roles('MENTOR')
@@ -31,15 +30,15 @@ export class AttendanceController {
 
     // this is for daily attendance mark service within PS only, to sync use sync attendance service which is in studentps file
     @UseGuards(JwtAuthGuard, RolesGuard)
-    @Roles('ADMIN')
-    @Post('markattendancebyadmin')
+    @Roles('SUPERADMIN', 'ADMIN')
+    @Post('markattendancebysuperadmin')
     @ApiResponse({ status: 201, description: 'The record has been successfully fetched.' })
     @ApiResponse({ status: 403, description: 'Forbidden.' })
     @UsePipes(new ValidationPipe())
     async markAttendanceByAdmin(@Request() req, @Body() markAttendanceByAdminDto: MarkAttendanceByAdminDto) {
         logger.debug(`reqUser: ${req.user.username} Attendance markAttendanceByAdmin is calling with body ${JSON.stringify(markAttendanceByAdminDto)}`);
         const result = await this.attendanceService.markAttendanceByAdmin(req.user, markAttendanceByAdminDto);
-        // logger.debug(`reqUser: ${req.user.username} return in Attendance bulkMarkAttendance controller > service response: ${(result.Error ? `error: ${result.message}` : `${result.message} and dub_count: ${result.payload.dup.length}`)}`)
+        logger.debug(`reqUser: ${req.user.username} return in Attendance bulkMarkAttendance controller > service response: ${(result.Error ? `error: ${result.message}` : `${result.message} and dub_count: ${result.payload.dup.length}`)}`)
         return result;
     }
 
@@ -55,7 +54,7 @@ export class AttendanceController {
         return result;
     }
 
-    @Cron('15 18,19 * * *')
+    @Cron('15 18,19 * * 1-6')
     markAbsentAttendanceAtEndOfDayCornJob() {
         this.attendanceService.markAbsentAttendanceAtEndOfDayCornJob();
     }

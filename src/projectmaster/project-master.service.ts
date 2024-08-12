@@ -61,7 +61,7 @@ export class ProjectMasterService {
                     continue;
                 }
                 const projectMaster = new ProjectMaster();
-                projectMaster.title = projectMasterBulkDto[i].title.replace(/\s+/g, '').trim();
+                projectMaster.title = projectMasterBulkDto[i].title.trim();
                 projectMaster.category = projectMasterBulkDto[i].category;
                 projectMaster.problemstatement = projectMasterBulkDto[i].problemstatement.trim();
                 projectMaster.techstack = projectMasterBulkDto[i].techstack;

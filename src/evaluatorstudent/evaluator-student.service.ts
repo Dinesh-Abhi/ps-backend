@@ -6,10 +6,12 @@ import logger from 'src/loggerfile/logger';
 import { EvaluatorMaster } from 'src/evaluatormaster/evaluator-master.entity';
 import { StudentPs } from 'src/studentps/studentps.entity';
 import { ERROR_MESSAGES, RESPONSE_MESSAGE } from 'src/constants';
-import { EvaluationType, SType } from 'src/enums';
+import { EvaluationType, RType, SType } from 'src/enums';
 import { BulkCreateEvaluatorGroupStudentDto, BulkCreateEvaluatorIndividualStudentDto, BulkUploadEvaluatorGroupWiseDto, BulkUploadEvaluatorIndividualWiseDto, CreateEvaluatorStudentDto, UpdateEvaluatorStudentTypeDto, UpdateEvaluatorToStudentDto } from './dto/evaluator-student.dto';
 import { EvaluationSchedule } from 'src/evaluationschedule/evaluationschedule.entity';
 import { GroupMaster } from 'src/groupmaster/group-master.entity';
+import { AdminMaster } from 'src/adminmaster/admin-master.entity';
+import { ReqUserType } from 'src/all.formats';
 
 @Injectable()
 export class EvaluatorStudentService {
@@ -24,6 +26,8 @@ export class EvaluatorStudentService {
         private readonly evaluationscheduleRepository: Repository<EvaluationSchedule>,
         @InjectRepository(GroupMaster)
         private readonly groupMasterRepository: Repository<GroupMaster>,
+        @InjectRepository(AdminMaster)
+        private readonly adminMasterRepository: Repository<AdminMaster>,
     ) { }
 
     async bulkUploadIndividulalWise(reqUsername: string, bulkUploadEvaluatorIndividualWiseDto: BulkUploadEvaluatorIndividualWiseDto[]) {
@@ -279,25 +283,33 @@ export class EvaluatorStudentService {
         }
     }
 
-    async updateESType(reqUsername: string, updateEvaluatorStudentTypeDto: UpdateEvaluatorStudentTypeDto) {
+    async updateESType(reqUser: ReqUserType, updateEvaluatorStudentTypeDto: UpdateEvaluatorStudentTypeDto) {
         try {
-            logger.debug(`reqUser: ${reqUsername} EvaluatorStudent updateESType service started`);
+            logger.debug(`reqUser: ${reqUser.username} EvaluatorStudent updateESType service started`);
+            const admin = await this.adminMasterRepository.findOne({ where: { usermaster: { id: reqUser.sub }, college: { psm: { evaluationschedule: { id: updateEvaluatorStudentTypeDto.escheduleId } } } } });
+            if (admin == null)
+                throw "Admin not found for schedule college"
             await this.evaluatorStudentRepository.update({ id: updateEvaluatorStudentTypeDto.estudentId }, {
                 type: updateEvaluatorStudentTypeDto.evaluationtype,
-                updatedby: reqUsername,
+                updatedby: reqUser.username,
             });
-            logger.debug(`reqUser: ${reqUsername} EvaluatorStudent updateESType service returned `);
+            logger.debug(`reqUser: ${reqUser.username} EvaluatorStudent updateESType service returned `);
             return { Error: false, message: RESPONSE_MESSAGE.UPDATED }
         } catch (error) {
             const error_message = (typeof error == 'object' ? error.message : error);
-            logger.error(`reqUser: ${reqUsername} error: ${error_message} > error in EvaluatorStudent updateESType service`);
+            logger.error(`reqUser: ${reqUser.username} error: ${error_message} > error in EvaluatorStudent updateESType service`);
             return { Error: true, message: error_message };
         }
     }
 
-    async findStudentsBySchedule(reqUsername: string, escheduleId: number) {
+    async findStudentsBySchedule(reqUser: ReqUserType, escheduleId: number) {
         try {
-            logger.debug(`reqUser: ${reqUsername} EvaluatorStudent findStudentsBySchedule service started with arguments: escheduleId: ${escheduleId}`);
+            logger.debug(`reqUser: ${reqUser.username} EvaluatorStudent findStudentsBySchedule service started with arguments: escheduleId: ${escheduleId}`);
+            if (reqUser.role == RType.ADMIN) {
+                const admin = await this.adminMasterRepository.findOne({ where: { usermaster: { id: reqUser.sub }, college: { psm: { evaluationschedule: { id: escheduleId } } } } });
+                if (admin == null)
+                    throw "Admin not found for schedule college"
+            }
             const data = await this.evaluatorStudentRepository.find({
                 where: { evaluationschedule: { id: escheduleId }, studentps: { status: SType.ACTIVE } },
                 relations: { studentps: { group: { project: { mentors: true } }, student: { usermaster: true } }, evaluator: true, evaluationresult: true },
@@ -320,20 +332,20 @@ export class EvaluatorStudentService {
                     }
                 }
             })
-            logger.debug(`reqUser: ${reqUsername} EvaluatorStudent findStudentsBySchedule service returned`);
+            logger.debug(`reqUser: ${reqUser.username} EvaluatorStudent findStudentsBySchedule service returned`);
             return { Error: false, payload: data }
         } catch (error) {
             const error_message = (typeof error == 'object' ? error.message : error);
-            logger.error(`reqUser: ${reqUsername} error: ${error_message} > error in EvaluatorStudent findStudentsBySchedule service`);
+            logger.error(`reqUser: ${reqUser.username} error: ${error_message} > error in EvaluatorStudent findStudentsBySchedule service`);
             return { Error: true, message: error_message };
         }
     }
 
-    async findStudentsByEvaluatorAndSchedule(reqUsername: string, escheduleId: number, evaluatorId: number) {
+    async findStudentsByEvaluatorAndSchedule(reqUser: ReqUserType, escheduleId: number, evaluatorId: number) {
         try {
-            logger.debug(`reqUser: ${reqUsername} EvaluatorStudent findStudentsByEvaluatorAndSchedule service started with arguments: escheduleId: ${escheduleId}, evaluatorId:${evaluatorId}`);
+            logger.debug(`reqUser: ${reqUser.username} EvaluatorStudent findStudentsByEvaluatorAndSchedule service started with arguments: escheduleId: ${escheduleId}, evaluatorId:${evaluatorId}`);
             const data = await this.evaluatorStudentRepository.find({
-                where: { evaluationschedule: { id: escheduleId }, evaluator: { id: evaluatorId }, studentps: { status: SType.ACTIVE } },
+                where: { evaluationschedule: { id: escheduleId }, evaluator: { id: evaluatorId, usermaster: { id: reqUser.sub } }, studentps: { status: SType.ACTIVE } },
                 relations: { studentps: { group: { project: { mentors: true } }, student: { usermaster: true } }, evaluator: true, evaluationresult: true },
                 select: {
                     id: true, type: true,
@@ -355,11 +367,11 @@ export class EvaluatorStudentService {
                     }
                 }
             })
-            logger.debug(`reqUser: ${reqUsername} EvaluatorStudent findStudentsByEvaluatorAndSchedule service returned`);
+            logger.debug(`reqUser: ${reqUser.username} EvaluatorStudent findStudentsByEvaluatorAndSchedule service returned`);
             return { Error: false, payload: data }
         } catch (error) {
             const error_message = (typeof error == 'object' ? error.message : error);
-            logger.error(`reqUser: ${reqUsername} error: ${error_message} > error in EvaluatorStudent findStudentsByEvaluatorAndSchedule service`);
+            logger.error(`reqUser: ${reqUser.username} error: ${error_message} > error in EvaluatorStudent findStudentsByEvaluatorAndSchedule service`);
             return { Error: true, message: error_message };
         }
     }

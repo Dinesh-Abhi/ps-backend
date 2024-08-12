@@ -1,6 +1,6 @@
 import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
 import { College } from "src/college/college.entity";
-import { PSSType } from "src/enums";
+import { PSSession, PSSType } from "src/enums";
 import { ProjectMaster } from "src/projectmaster/project-master.entity";
 import { EvaluatorStudent } from "src/evaluatorstudent/evaluator-student.entity";
 import { StudentPs } from "src/studentps/studentps.entity";
@@ -45,6 +45,13 @@ export class PsMaster {
     default: PSSType.IN_PROGRESS,
   })
   status: PSSType;
+
+  @Column({
+    type: 'enum',
+    enum: PSSession,
+    nullable: true
+  })
+  session: PSSession;
 
   @Column({ nullable: true })
   group_start: Date;

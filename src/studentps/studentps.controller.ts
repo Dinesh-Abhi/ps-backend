@@ -8,6 +8,7 @@ import logger from 'src/loggerfile/logger';
 import { GroupEnrollDto, AddNewStudentToGroupDto, ReplaceStudentInGroupDto, MentorStudentdayReportDto, AddOrUpdateGithubLinkDto, SyncPastDateAttendanceDto, SyncPastDateAttendanceBetweenDatesDto, AddReviewCommentDto, AddMentorReviewCommentDto } from './dto/student-ps.dto';
 import { Cron } from '@nestjs/schedule';
 import { SkipThrottle } from '@nestjs/throttler';
+import { SkipInterceptor } from 'src/config/interceptors/skip.interceptor';
 
 @ApiTags('StudentPs')
 @ApiSecurity("JWT-auth")
@@ -287,6 +288,18 @@ export class StudentPsController {
   @Roles('ADMIN', 'SUPERADMIN', 'MENTOR')
   @ApiResponse({ status: 201, description: 'The record has been successfully.' })
   @ApiResponse({ status: 403, description: 'Forbidden.' })
+  @Get('studentresultsreport/:psId')
+  async studentResultsReport(@Request() req, @Param('psId', ParseIntPipe) psId: number) {
+    logger.debug(`reqUser: ${req.user.username} studentps studentResultsReport is calling with params psId:${psId} `);
+    const result = await this.studentPsService.studentResultsReport(req.user, psId);
+    logger.debug(`reqUser: ${req.user.username} return in studentps studentResultsReport controller > service response: ${(result.Error ? `error: ${result.message}` : `Report data sent successfully`)} `);
+    return result;
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'SUPERADMIN', 'MENTOR')
+  @ApiResponse({ status: 201, description: 'The record has been successfully.' })
+  @ApiResponse({ status: 403, description: 'Forbidden.' })
   @Get('attendancefromandtoreport/:psId/:from/:to')  //YYYY-MM-DD
   async attendaneFromAndToreport(@Request() req, @Param('psId', ParseIntPipe) psId: number, @Param('from') from: string, @Param('to') to: string) {
     logger.debug(`reqUser: ${req.user.username} studentps attendaneFromAndToreport is calling with params psId:${psId} from: '${from}' to: '${to}' `);
@@ -324,7 +337,7 @@ export class StudentPsController {
   */
 
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPERADMIN')
+  @Roles('SUPERADMIN', 'ADMIN')
   @Post('syncpastdateattendance')
   @ApiResponse({ status: 403, description: 'Forbidden.' })
   @UsePipes(new ValidationPipe())
@@ -337,7 +350,7 @@ export class StudentPsController {
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPERADMIN')
+  @Roles('SUPERADMIN', 'ADMIN')
   @Post('syncpastdateattendancebetweendates')
   @UsePipes(new ValidationPipe())
   async syncPastDateAttendanceBetweenDates(@Request() req, @Body() syncPastDateAttendanceBetweenDatesDto: SyncPastDateAttendanceBetweenDatesDto) {
@@ -354,6 +367,7 @@ export class StudentPsController {
   @ApiResponse({ status: 201, description: 'The record has been successfully.' })
   @ApiResponse({ status: 403, description: 'Forbidden.' })
   @Get('attfordbbydate/:date')
+  @SkipInterceptor()
   async attByDateForBD(@Param('date') date: string) {
     logger.debug(`studentps attByDateForBD is calling with params date:${date} `);
     const result = await this.studentPsService.attByDateForBD(date);
@@ -367,6 +381,7 @@ export class StudentPsController {
   @ApiResponse({ status: 201, description: 'The record has been successfully.' })
   @ApiResponse({ status: 403, description: 'Forbidden.' })
   @Get('studentsfulldata')
+  @SkipInterceptor()
   async sendDataToDb() {
     logger.debug(`studentps sendDataToDb is calling`);
     const result = await this.studentPsService.sendDataToDb();
@@ -376,7 +391,7 @@ export class StudentPsController {
   }
 
   // dont try to change below cron jobs, rather then timeings
-  @Cron('30 15,16,17,18,20 * * *')
+  @Cron('30 13,14,15,16,17,18,20 * * 1-6')
   syncAttendanceToTrinetraCronJobfirst() {
     const kmit_url = (process.env.KMIT_TRINETRA_URL != undefined && process.env.KMIT_TRINETRA_URL !== "")
     const ngit_url = (process.env.NGIT_TRINETRA_URL != undefined && process.env.NGIT_TRINETRA_URL !== "")
@@ -387,9 +402,9 @@ export class StudentPsController {
       logger.alert(`please make sure CRON_JOB_ON = true and All college TRINETRA URL details present in environmental variable`)
   }
 
-  @Cron('0,30 17 * * *')
+  @Cron('0,30 17 * * 1-6')
   sendEmailsToMentorCron() {
-    if (process.env.CRON_JOB_ON.toString() == "true" && (process.env.MAIL_SENDER != null || process.env.MAIL_SENDER != undefined) )
+    if (process.env.CRON_JOB_ON.toString() == "true" && (process.env.MAIL_SENDER != null || process.env.MAIL_SENDER != undefined))
       this.studentPsService.sendEmailsToMentorCron()
     else
       logger.alert(`please make sure CRON_JOB_ON is set to true to send mail to mentors and set MAIL_SENDER mail to send mails`)

@@ -54,9 +54,6 @@ import { MilestonestudentpsModule } from './milestonestudentps/milestonestudentp
 import { MilestoneStudentPs } from './milestonestudentps/milestonestudentps.entity';
 import { EvaluationSchedule } from './evaluationschedule/evaluationschedule.entity';
 import { EvaluationscheduleModule } from './evaluationschedule/evaluationschedule.module';
-import { CachingInterceptor } from './config/caching.interceptor';
-import { BrowserAllowInterceptor } from './config/alllow-browser.interceptor';
-
 
 @Module({
   imports: [
@@ -105,14 +102,6 @@ import { BrowserAllowInterceptor } from './config/alllow-browser.interceptor';
     {
       provide: APP_INTERCEPTOR,
       useClass: JwtExpiredFilter,
-    },
-    {
-      provide: APP_INTERCEPTOR,
-      useClass: CachingInterceptor,
-    },
-    {
-      provide: APP_INTERCEPTOR,
-      useClass: BrowserAllowInterceptor,
     },
     AppService, MysqlService, JwtService]
 })

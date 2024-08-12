@@ -28,32 +28,16 @@ export class PsMasterService {
         @InjectRepository(AdminMaster)
         private readonly adminMasterRepository: Repository<AdminMaster>,
     ) { }
-    async create(reqUsername: string, psMasterDto: PsMasterDto) {
-        try {
-            logger.debug(`requser: ${reqUsername} PsMaster create service started`);
-            // const college = await this.collegeService.findOne(reqUsername, psMasterDto.collegeId);
-            // if (college.Error)
-            //     throw college.message
-            // if (college.payload.status == SType.INACTIVE || college.payload == null)
-            //     throw `College ${ERROR_MESSAGES.NOT_EXISTS_INACTIVE}`;
-            const psByClg = await this.psRepository.findAndCount({
-                where: {
-                    college: { id: psMasterDto.collegeId, status: SType.ACTIVE },
-                    status: PSSType.IN_PROGRESS,
-                },
-                relations: { college: true }
-            });
-            const psByClg_Year = await this.psRepository.findAndCount({
-                where: {
-                    college: { id: psMasterDto.collegeId, status: SType.ACTIVE },
-                    studentyear: psMasterDto.studentyear,
-                    academicyear: psMasterDto.academicyear,
-                    status: PSSType.IN_PROGRESS,
-                },
-            });
-            if (psByClg_Year[1] == 1 || psByClg[1] >= 2)
-                throw ERROR_MESSAGES.MAKE_PS_INACTIVE;
 
+    async create(reqUser: ReqUserType, psMasterDto: PsMasterDto) {
+        try {
+            logger.debug(`requser: ${reqUser.username} PsMaster create service started`);
+            if( reqUser.role == RType.ADMIN){
+                const college = await this.collegeRepository.findOne({ where: { id: psMasterDto.collegeId } });
+                if (college == null)
+                    throw "Requested user not found for college"
+            }
+           
             const res = await this.psRepository.findOne({
                 where: {
                     academicyear: psMasterDto.academicyear,
@@ -62,7 +46,8 @@ export class PsMasterService {
                     college: { id: psMasterDto.collegeId }
                 }
             });
-            if (res) throw `PS ${ERROR_MESSAGES.ALREADY_EXISTS}`;
+            if (res)
+                throw `PS ${ERROR_MESSAGES.ALREADY_EXISTS}`;
 
             const ps = new PsMaster();
             ps.semester = psMasterDto.semester;
@@ -70,17 +55,18 @@ export class PsMasterService {
             ps.college = { id: psMasterDto.collegeId } as College;
             ps.academicyear = psMasterDto.academicyear;
             ps.groupcount = psMasterDto.groupcount;
-            ps.updatedBy = reqUsername;
+            ps.session = psMasterDto.session;
+            ps.updatedBy = reqUser.username;
             const newps = await this.psRepository.save(ps);
             // const milestaones = await this.mileStoneService.create(reqUsername,newps.id);
             // if(milestaones.Error){
             //     logger.error(`requser: ${reqUsername} error:${milestaones.message} > error in milestone createing service for newly created Ps`)
             // }
-            logger.debug(`requser: ${reqUsername} PsMaster create service returned`);
+            logger.debug(`requser: ${reqUser.username} PsMaster create service returned`);
             return { Error: false, message: RESPONSE_MESSAGE.CREATED };
         } catch (error) {
             const err_message = (typeof error == 'object' ? error.message : error);
-            logger.error(`requser: ${reqUsername} error:${err_message} > error in PsMaster create service`)
+            logger.error(`requser: ${reqUser.username} error:${err_message} > error in PsMaster create service`)
             return { Error: true, message: err_message }
         }
     }
@@ -90,13 +76,13 @@ export class PsMasterService {
             logger.debug(`requser: ${reqUser.username} PsMaster bulk create service started`);
             const createdPsRecords = []
             for (const psDto of psMasterDto) {
-                if(psDto.studentyear == 3 && psDto.semester == 'sem2'){
+                if (psDto.studentyear == 3 && psDto.semester == 'sem2') {
                     createdPsRecords.push({
                         Error: true,
                         studentyear: psDto.studentyear,
                         message: "PS cannot be created for 3rd year and sem2"
                     })
-                }else{
+                } else {
                     const college = await this.collegeRepository.findOne({ where: { id: psDto.collegeId } });
                     if (college == null || college.status == SType.INACTIVE)
                         throw `College ${ERROR_MESSAGES.NOT_EXISTS_INACTIVE}`;
@@ -104,7 +90,7 @@ export class PsMasterService {
                     if (admin == null) {
                         throw 'Admin not found for college'
                     }
-                    const newps = await this.create(reqUser.username, psDto);
+                    const newps = await this.create(reqUser, psDto);
                     createdPsRecords.push({
                         Error: newps.Error,
                         studentyear: psDto.studentyear,
@@ -176,12 +162,10 @@ export class PsMasterService {
                     academicyear: psUpdateDto.academicyear,
                     semester: psUpdateDto.semester,
                     studentyear: psUpdateDto.studentyear,
-                    status: PSSType.IN_PROGRESS,
                     college: { id: psUpdateDto.collegeId },
-                    groupcount: psUpdateDto.groupcount,
                 }
             });
-            if (psUpdateDto.status == PSSType.IN_PROGRESS && res)
+            if (res && res.id != psUpdateDto.psId )
                 throw `PS ${ERROR_MESSAGES.ALREADY_EXISTS}`;
 
             ps.academicyear = psUpdateDto.academicyear;
@@ -190,6 +174,7 @@ export class PsMasterService {
             ps.college = { id: psUpdateDto.collegeId } as College;
             ps.updatedBy = reqUsername;
             ps.status = psUpdateDto.status;
+            ps.session = psUpdateDto.session;
             ps.groupcount = psUpdateDto.groupcount;
             if (psUpdateDto.status == PSSType.COMPLETED) {
                 const res = await this.makePsInActive(reqUsername, ps.id);
@@ -318,11 +303,17 @@ export class PsMasterService {
             const ps = await this.psRepository.findOneBy({ id: scheduleGroupEnrollDto.psId });
             if (ps == null)
                 throw ERROR_MESSAGES.NOT_FOUND;
+            const group_start = new Date(scheduleGroupEnrollDto.group_start)
+            group_start.setSeconds(0);
+            group_start.setMilliseconds(0);
+            const group_end = new Date(scheduleGroupEnrollDto.group_end)
+            group_end.setSeconds(0);
+            group_end.setMilliseconds(0);
             await this.psRepository.update({ id: scheduleGroupEnrollDto.psId }, {
                 group_scheduled_by: reqUsername,
                 last_updatedon_gschedule: new Date(),
-                group_start: scheduleGroupEnrollDto.group_start,
-                group_end: scheduleGroupEnrollDto.group_end,
+                group_start: group_start,
+                group_end: group_end,
                 updatedBy: reqUsername,
             })
             logger.debug(`requser: ${reqUsername} psmaster scheduleGroupEnrollments service returned`);
@@ -350,11 +341,17 @@ export class PsMasterService {
             if (new Date(scheduleProjectEnrollDto.project_end).getTime() < new Date(ps.group_end).getTime())
                 throw "Project end date must be after group end date.";
 
+            const project_start = new Date(scheduleProjectEnrollDto.project_start)
+            project_start.setSeconds(0);
+            project_start.setMilliseconds(0);
+            const project_end = new Date(scheduleProjectEnrollDto.project_end)
+            project_end.setSeconds(0);
+            project_end.setMilliseconds(0);
             await this.psRepository.update({ id: scheduleProjectEnrollDto.psId }, {
                 project_scheduled_by: reqUsername,
                 last_updatedon_pschedule: new Date(),
-                project_start: scheduleProjectEnrollDto.project_start,
-                project_end: scheduleProjectEnrollDto.project_end,
+                project_start: project_start,
+                project_end: project_end,
                 updatedBy: reqUsername,
             });
             logger.debug(`requser: ${reqUsername} psmaster scheduleProjectEnrollments service returned`);

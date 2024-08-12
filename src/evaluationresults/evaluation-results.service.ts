@@ -33,6 +33,7 @@ export class EvaluationResultsService {
             evaluationResult.answer9 = createEvaluationResultDto.answer9;
             evaluationResult.answer10 = createEvaluationResultDto.answer10;
             evaluationResult.grade = createEvaluationResultDto.grade;
+            evaluationResult.nextps = createEvaluationResultDto.nextps;
             evaluationResult.evaluatorstudent = { id: createEvaluationResultDto.estudentId } as EvaluatorStudent;
             evaluationResult.comments = createEvaluationResultDto.comments;
             evaluationResult.updatedby = reqUsername;
@@ -111,16 +112,17 @@ export class EvaluationResultsService {
                         for (let i = 0; i < evaluatorstudents.length; i++) {
                             const createEvaluationResultDto = new CreateEvaluationResultDto();
                             createEvaluationResultDto.answer1 = createGroupResultDto.answer1;
-                            createEvaluationResultDto.answer2 = createGroupResultDto.answer1;
-                            createEvaluationResultDto.answer3 = createGroupResultDto.answer1;
-                            createEvaluationResultDto.answer4 = createGroupResultDto.answer1;
-                            createEvaluationResultDto.answer5 = createGroupResultDto.answer1;
-                            createEvaluationResultDto.answer6 = createGroupResultDto.answer1;
-                            createEvaluationResultDto.answer7 = createGroupResultDto.answer1;
-                            createEvaluationResultDto.answer8 = createGroupResultDto.answer1;
-                            createEvaluationResultDto.answer9 = createGroupResultDto.answer1;
-                            createEvaluationResultDto.answer10 = createGroupResultDto.answer1;
+                            createEvaluationResultDto.answer2 = createGroupResultDto.answer2;
+                            createEvaluationResultDto.answer3 = createGroupResultDto.answer3;
+                            createEvaluationResultDto.answer4 = createGroupResultDto.answer4;
+                            createEvaluationResultDto.answer5 = createGroupResultDto.answer5;
+                            createEvaluationResultDto.answer6 = createGroupResultDto.answer6;
+                            createEvaluationResultDto.answer7 = createGroupResultDto.answer7;
+                            createEvaluationResultDto.answer8 = createGroupResultDto.answer8;
+                            createEvaluationResultDto.answer9 = createGroupResultDto.answer9;
+                            createEvaluationResultDto.answer10 = createGroupResultDto.answer10;
                             createEvaluationResultDto.estudentId = evaluatorstudents[i].id;
+                            createEvaluationResultDto.nextps = createGroupResultDto.nextps.includes(evaluatorstudents[i].id);
                             createEvaluationResultDto.grade = createGroupResultDto.grade;
                             createEvaluationResultDto.comments = createGroupResultDto.comments;
                             await this.create(reqUser.username, createEvaluationResultDto);
@@ -153,15 +155,38 @@ export class EvaluationResultsService {
                     evaluator: {
                         usermaster: { id: reqUser.sub }
                     }
-                }
+                },
+                relations: { group: true, evaluationresult: true, }
             });
             if (estudent == null) {
                 throw "Student not found for Evaluator"
             }
-            await this.evaluationResultRepository.update({ id: updateResultCommentDto.id }, {
-                comments: updateResultCommentDto.comments,
-                updatedby: reqUser.username,
-            })
+            if (estudent.type == EvaluationType.GROUPEVALUATION) {
+                const evaluatorstudents = await this.evaluatorStudentRepository.find({
+                    where: {
+                        group: { id: estudent.group.id },
+                        evaluationschedule: { id: updateResultCommentDto.escheduleId }, type: EvaluationType.GROUPEVALUATION,
+                        evaluator: {
+                            usermaster: { id: reqUser.sub }
+                        }
+                    },
+                    relations: { evaluationresult: true }
+                });
+                for (let i = 0; i < evaluatorstudents.length; i++) {
+                    await this.evaluationResultRepository.update({ id: evaluatorstudents[i].evaluationresult.id }, {
+                        comments: updateResultCommentDto.comments,
+                        updatedby: reqUser.username,
+                    })
+                }
+            } else {
+                if (estudent.evaluationresult == null) {
+                    throw "Student Evaluation Record not found."
+                }
+                await this.evaluationResultRepository.update({ id: estudent.evaluationresult.id }, {
+                    comments: updateResultCommentDto.comments,
+                    updatedby: reqUser.username,
+                })
+            }
             logger.debug(`reqUser: ${reqUser.username} EvaluatorResults updateResultComment service returned`);
             return { Error: false, message: RESPONSE_MESSAGE.UPDATED };
         } catch (error) {

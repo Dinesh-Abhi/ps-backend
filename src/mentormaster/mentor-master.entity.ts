@@ -3,6 +3,7 @@ import { College } from 'src/college/college.entity';
 import { SType } from 'src/enums';
 import { UserMaster } from 'src/usermaster/user-master.entity';
 import { ProjectMaster } from 'src/projectmaster/project-master.entity';
+import { ReviewComment } from 'src/common.interfaces ';
 
 @Entity()
 export class MentorMaster {
@@ -24,6 +25,15 @@ export class MentorMaster {
   @Column({ nullable: true })
   updatedby: string;
 
+  @Column({ default: false })
+  mentornotification: boolean;
+
+  @Column({ default: true })
+  isforcepasswordenable: boolean;
+
+  @Column('simple-json', { nullable: true })
+  comments: ReviewComment[];
+
   @Column({
     type: 'enum',
     enum: SType,
@@ -40,6 +50,6 @@ export class MentorMaster {
   usermaster: UserMaster;
 
   @ManyToMany(() => ProjectMaster, (project) => project.mentors)
-  @JoinTable({name:'mentor_project_mapping'})
+  @JoinTable({ name: 'mentor_project_mapping' })
   projects: ProjectMaster[];
 }

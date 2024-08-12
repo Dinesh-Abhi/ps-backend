@@ -9,9 +9,11 @@ import { JwtModule } from '@nestjs/jwt';
 import { AuditLogService } from 'src/auditlog/auditlog.service';
 import { AuditLog } from 'src/auditlog/auditlog.entity';
 import { EmailService } from 'src/email/email';
+import { StudentMaster } from 'src/studentmaster/student-master.entity';
+import { MentorMaster } from 'src/mentormaster/mentor-master.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([UserMaster, AuditLog]), JwtModule],
+  imports: [TypeOrmModule.forFeature([UserMaster, AuditLog, StudentMaster, MentorMaster]), JwtModule],
   controllers: [UserMasterController],
   providers: [UserMasterService, AuthService, TokenService, AuditLogService, EmailService],
   exports: [UserMasterService]

@@ -43,6 +43,9 @@ export class EvaluationResult {
   @Column({ default: null, nullable: true })
   eliteflag: boolean;
 
+  @Column({ default: false })
+  nextps: boolean;
+
   // @Column({
   //   type: 'enum',
   //   enum: EvaluationGradeEnum

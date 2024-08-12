@@ -15,7 +15,7 @@ export class AdminMaster {
   createdon: Date;
 
   @Column({ nullable: true })
-  updatedBy:string;
+  updatedBy: string;
 
   @UpdateDateColumn() // Use @UpdateDateColumn for updatedon
   updatedon: Date;
@@ -31,7 +31,7 @@ export class AdminMaster {
   @JoinColumn()
   usermaster: UserMaster;
 
-  @ManyToOne(() => College, (college) => college.studentmaster,{ nullable:false }) 
+  @ManyToOne(() => College, (college) => college.studentmaster, { nullable: false })
   @JoinColumn({ name: 'collegeId' })
   college: College;
 

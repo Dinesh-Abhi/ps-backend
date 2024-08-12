@@ -20,6 +20,11 @@ export class CreateEvaluationscheduleDto {
     @IsDate()
     end: Date;
 
+    // @ApiProperty({ type: Number })
+    // @IsNotEmpty()
+    // @IsNumber()
+    // weightage: number;
+
     @ApiProperty({ type: Number })
     @IsNotEmpty()
     @IsNumber()
@@ -36,6 +41,11 @@ export class UpdateEvaluationscheduleDto{
     @IsNotEmpty()
     @IsString()
     name: string;
+
+    // @ApiProperty({ type: Number })
+    // @IsNotEmpty()
+    // @IsNumber()
+    // weightage: number;
     
     @ApiProperty({ type: Date })
     @IsNotEmpty()

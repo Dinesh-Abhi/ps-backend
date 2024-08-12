@@ -74,8 +74,8 @@ export class GroupMasterService {
         const randomDelay = () => {
             const delayMilliseconds = Math.floor(Math.random() * 10000)
             const delaySeconds = Math.floor(Math.random() * 5) + 1;
-            logger.debug(`reqUser:${reqUser.username} groupmaster project enroll dealy time Sec:${delaySeconds }, msec:${delayMilliseconds} `)
-            return new Promise(resolve => setTimeout(resolve, (delaySeconds) + delayMilliseconds));
+            logger.debug(`reqUser:${reqUser.username} groupmaster project enroll dealy time Sec:${delaySeconds}, msec:${delayMilliseconds} `)
+            return new Promise(resolve => setTimeout(resolve, (delaySeconds * 1000) + delayMilliseconds));
         };
         await randomDelay();
 
@@ -83,7 +83,7 @@ export class GroupMasterService {
             const user = await this.StudentPsRepository.findOne({ where: { status: SType.ACTIVE, group: { id: eroleprojectDto.groupId }, student: { usermaster: { id: reqUser.sub } } } });
             if (user == null)
                 throw "Requested user not exists in group";
-            
+
             const ps = await this.psMasterRepository.findOneBy({ id: eroleprojectDto.psId });
             if (!ps)
                 throw `Ps ${ERROR_MESSAGES.NOT_FOUND}`;
@@ -95,10 +95,9 @@ export class GroupMasterService {
             }
 
             let project: any = await this.projectMasterRepository.findOne({ where: { id: eroleprojectDto.projectId, status: SType.ACTIVE } });
-            
+
             if (project == null || project.maxgroups <= project.enrolledgroups)
                 throw ERROR_MESSAGES.MAX_ENROLLMENTS;
-            console.log("enroll started",group_file,fs.existsSync(group_file))
             if (!fs.existsSync(group_file)) {
                 fs.writeFile(group_file, `groupId-${eroleprojectDto.groupId}`, (err) => {
                     if (err) throw err;

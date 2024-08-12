@@ -4,7 +4,7 @@ import { ApiResponse, ApiSecurity, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import { Roles } from 'src/auth/roles.decorator';
 import { RolesGuard } from 'src/auth/roles.guard';
-import { MentorMasterDto, MentorProfileUpdateDto, MentorUpdateDto } from './dto/mentor-master.dto';
+import { CommentDto, MentorMasterDto, MentorProfileUpdateDto, MentorUpdateDto } from './dto/mentor-master.dto';
 import logger from 'src/loggerfile/logger';
 
 @ApiTags('mentorMaster')
@@ -97,6 +97,43 @@ export class MentorMasterController {
         logger.debug(`reqUser: ${req.user.username} mentormaster update is calling with body ${JSON.stringify(mentorUpdateDto)}`)
         const result = await this.mentorMasterService.update(req.user.username, mentorUpdateDto)
         logger.debug(`reqUser: ${req.user.username} return in mentormaster update controller > service response: ${(result.Error ? `error: ${result.message}` : `Mentor ${result.message}`)}`)
+        return result
+    }
+
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Roles('SUPERADMIN', 'ADMIN')
+    @Put('addcomment')
+    @ApiResponse({ status: 201, description: 'The record has been successfully updated.' })
+    @ApiResponse({ status: 403, description: 'Forbidden.' })
+    @UsePipes(new ValidationPipe())
+    async addComment(@Request() req, @Body() commentDto: CommentDto) {
+        logger.debug(`reqUser: ${req.user.username} mentormaster addComment is calling with body ${JSON.stringify(commentDto)}`)
+        const result = await this.mentorMasterService.addComment(req.user, commentDto)
+        logger.debug(`reqUser: ${req.user.username} return in mentormaster addComment controller > service response: ${(result.Error ? `error: ${result.message}` : `${result.message}`)}`)
+        return result
+    }
+
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Roles('MENTOR')
+    @Put('offnotification')
+    @ApiResponse({ status: 201, description: 'The record has been successfully updated.' })
+    @ApiResponse({ status: 403, description: 'Forbidden.' })
+    async offNotification(@Request() req) {
+        logger.debug(`reqUser: ${req.user.username} mentormaster offNotification is calling`)
+        const result = await this.mentorMasterService.offNotification(req.user)
+        logger.debug(`reqUser: ${req.user.username} return in mentormaster offNotification controller > service response: ${(result.Error ? `error: ${result.message}` : `${result.message}`)}`)
+        return result
+    }
+
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Roles('MENTOR')
+    @Get('getcomments')
+    @ApiResponse({ status: 201, description: 'The record has been successfully updated.' })
+    @ApiResponse({ status: 403, description: 'Forbidden.' })
+    async getComments(@Request() req) {
+        logger.debug(`reqUser: ${req.user.username} mentormaster getComments is calling`)
+        const result = await this.mentorMasterService.getComments(req.user)
+        logger.debug(`reqUser: ${req.user.username} return in mentormaster getComments controller > service response: ${(result.Error ? `error: ${result.message}` : `${result.message}`)}`)
         return result
     }
 }

@@ -42,11 +42,12 @@ export class UserMasterController {
                 return result;
             } else {
                 logger.debug(`reqUser: ${req.user.username} return in usermaster ResetPassword controller > username was incorrect`);
-                return { Error: true, message: `You're ${req.user.username} is incorrect and can't change ${resetPasswordDto.username} password` }
+                throw `Your username is incorrect, and you can't change the password for ${resetPasswordDto.username}.`
             }
         } catch (error) {
-            logger.error(`reqUser: ${req.user.username} error: ${(typeof error == 'object' ? error.message : error)} > error in ResetPassword controller`);
-            return { Error: true, message: (typeof error == 'object' ? error.message : error) };
+            const err_message = (typeof error == 'object' ? error.message : error);
+            logger.error(`reqUser: ${req.user.username} error: ${err_message} > error in ResetPassword controller`);
+            return { Error: true, message: err_message };
         }
     }
 }

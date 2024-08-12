@@ -6,7 +6,7 @@ import { RolesGuard } from 'src/auth/roles.guard';
 import { Roles } from 'src/auth/roles.decorator';
 import { CreateVirtualStudentsDto, StudentMasterBulkDto, StudentMasterUpdateDto, StudentProfileUpdateDto } from './dto/student-master.dto';
 import logger from 'src/loggerfile/logger';
-import { CachingInterceptor } from 'src/config/caching.interceptor';
+import { CachingInterceptor } from 'src/config/interceptors/caching.interceptor';
 
 @ApiTags('Student')
 @ApiSecurity("JWT-auth")

@@ -5,13 +5,14 @@ import { Repository } from 'typeorm';
 import { UserMasterDto } from 'src/usermaster/dto/user-master.dto';
 import { UserMaster } from 'src/usermaster/user-master.entity';
 import { UserMasterService } from 'src/usermaster/user-master.service';
-import { MentorMasterDto, MentorProfileUpdateDto, MentorUpdateDto } from './dto/mentor-master.dto';
+import { CommentDto, MentorMasterDto, MentorProfileUpdateDto, MentorUpdateDto } from './dto/mentor-master.dto';
 import logger from 'src/loggerfile/logger';
 import { College } from 'src/college/college.entity';
 import { PSSType, RType, SType } from 'src/enums';
 import { CollegeService } from 'src/college/college.service';
 import { ERROR_MESSAGES, RESPONSE_MESSAGE } from 'src/constants';
 import { ReqUserType } from 'src/all.formats';
+import { ReviewComment } from 'src/common.interfaces ';
 
 @Injectable()
 export class MentorMasterService {
@@ -105,7 +106,7 @@ export class MentorMasterService {
         try {
             logger.debug(`reqUser: ${reqUsername} mentormaster MentorList service started`)
             const result = await this.mentorMasterRepository.find({
-                select: { id: true, status: true, name: true, email: true, usermaster: { id: true, username: true }, college: { id: true, code: true } },
+                select: { id: true, status: true, name: true, email: true, comments:true, usermaster: { id: true, username: true }, college: { id: true, code: true } },
                 relations: { usermaster: true, college: true }
             })
             logger.debug(`reqUser: ${reqUsername} mentormaster MentorList service returned`);
@@ -157,14 +158,14 @@ export class MentorMasterService {
             logger.debug(`reqUser: ${reqUser.username} mentorMaster getCurrentYearProjects service started`);
             const data = await this.mentorMasterRepository.find({
                 where: { id: mentorId, usermaster: { id: reqUser.sub }, projects: { ps: { status: PSSType.IN_PROGRESS } } },
-                select: { id: true, projects: { id: true, title: true, ps: { id: true, academicyear: true, studentyear: true, semester: true, status: true, milestones: true, college: { id: true, code: true } } } },
+                select: { id: true, projects: { id: true, title: true, reflink: true, ps: { id: true, academicyear: true, studentyear: true, semester: true, status: true, milestones: true, college: { id: true, code: true } } } },
                 relations: { projects: { ps: { milestones: true, college: true } } }
             });
             const transformedData = data.reduce((acc, mentor) => {
                 const { projects } = mentor;
 
                 projects.forEach(project => {
-                    const { id: projectId, title, ps } = project;
+                    const { id: projectId, title, reflink, ps } = project;
                     const { id: psId, academicyear, studentyear, semester, status, college, milestones } = ps;
                     const { id: clgId, code } = college;
 
@@ -191,7 +192,7 @@ export class MentorMasterService {
                         milestonecount = 0;
                     const existingProject = psEntry.projects.find(p => p.id === projectId);
                     if (!existingProject) {
-                        psEntry.projects.push({ id: projectId, title, milestone: milestonecount });
+                        psEntry.projects.push({ id: projectId, title, reflink, milestone: milestonecount });
                     }
                 });
 
@@ -219,6 +220,62 @@ export class MentorMasterService {
         } catch (error) {
             const err_message = (typeof error == 'object' ? error.message : error);
             logger.error(`reqUser: ${reqUsername} error: ${err_message} > error in mentorMaster mentorProfileUpdate service`);
+            return { Error: true, message: err_message };
+        }
+    }
+
+    async addComment(reqUser: ReqUserType, commentDto: CommentDto) {
+        try {
+            logger.debug(`reqUser: ${reqUser.username} mentorMaster addComment service started`);
+            const mentor = await this.mentorMasterRepository.findOneBy({ id: commentDto.mentorId });
+            if (mentor == null)
+                throw ERROR_MESSAGES.USER_NOT_FOUND
+            const comment: ReviewComment = {
+                addedon: new Date(),
+                givenby: reqUser.username,
+                comment: commentDto.comment
+            }
+            if (mentor != null && mentor.comments == null) {
+                mentor.comments = [comment];
+            } else {
+                mentor.comments = [...mentor.comments, comment];
+            }
+            mentor.mentornotification = true;
+            mentor.updatedby = reqUser.username;
+            await this.mentorMasterRepository.save(mentor)
+            logger.debug(`reqUser: ${reqUser.username} mentorMaster addComment service returned`);
+            return { Error: false, message: RESPONSE_MESSAGE.COMMENT };
+        } catch (error) {
+            const err_message = (typeof error == 'object' ? error.message : error);
+            logger.error(`reqUser: ${reqUser.username} error: ${err_message} > error in mentorMaster addComment service`);
+            return { Error: true, message: err_message };
+        }
+    }
+
+    async offNotification(reqUser: ReqUserType) {
+        try {
+            logger.debug(`reqUser: ${reqUser.username} mentorMaster offNotification service started`);
+            await this.mentorMasterRepository.update({ usermaster: { id: reqUser.sub } }, {
+                mentornotification: false,
+            })
+            logger.debug(`reqUser: ${reqUser.username} mentorMaster offNotification service returned`);
+            return { Error: false, message: RESPONSE_MESSAGE.REQUEST_SUCCESS };
+        } catch (error) {
+            const err_message = (typeof error == 'object' ? error.message : error);
+            logger.error(`reqUser: ${reqUser.username} error: ${err_message} > error in mentorMaster offNotification service`);
+            return { Error: true, message: err_message };
+        }
+    }
+
+    async getComments(reqUser: ReqUserType) {
+        try {
+            logger.debug(`reqUser: ${reqUser.username} mentorMaster getComments service started`);
+            const mentor = await this.mentorMasterRepository.findOne({ where: { usermaster: { id: reqUser.sub } }, select: { id: true, comments: true } });
+            logger.debug(`reqUser: ${reqUser.username} mentorMaster getComments service returned`);
+            return { Error: false, payload: mentor };
+        } catch (error) {
+            const err_message = (typeof error == 'object' ? error.message : error);
+            logger.error(`reqUser: ${reqUser.username} error: ${err_message} > error in mentorMaster getComments service`);
             return { Error: true, message: err_message };
         }
     }

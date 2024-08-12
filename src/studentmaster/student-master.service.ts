@@ -31,7 +31,7 @@ export class StudentMasterService {
     ) { }
 
     async matchStudentRegex(college: string, username: string): Promise<boolean> {
-        if (college === 'DEMO' || college === 'TESTCOLLEGE' || college === 'KMIT' ) return true;
+        if (college === 'DEMO' || college === 'TESTCOLLEGE' ) return true;
 
         const envVariable = `${college}_STUDENT_REGEX`;
         const clgRegex = process.env[envVariable];

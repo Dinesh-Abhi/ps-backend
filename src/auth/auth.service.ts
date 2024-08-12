@@ -11,6 +11,7 @@ import { UserMasterService } from 'src/usermaster/user-master.service';
 import { ERROR_MESSAGES, AUDIT_LOG } from 'src/constants';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
+// var CryptoJS = require("crypto-js");
 
 @Injectable()
 export class AuthService {
@@ -63,7 +64,9 @@ export class AuthService {
         throw save.message;
 
       const jwttoken = this.jwtService.sign(payload, { secret: jwtConstants.secret, expiresIn: jwtConstants.expirationTime });
+      // var ciphertext = CryptoJS.AES.encrypt(refreshToken, process.env.JWT_SECRET_KEY).toString();
       await this.cacheManager.set(payload.username, jwttoken);
+      // await this.cacheManager.set(payload.username, { jwttoken: jwttoken, secrettoken: refreshToken });
 
       if (user.role == RType.STUDENT) {
         let res: any = {
@@ -108,6 +111,7 @@ export class AuthService {
           collegecode: user.mentor.college.code,
           email: user.mentor.email,
           mentorId: user.mentor.id,
+          notification: user.mentor.mentornotification
         }
       } else if (user.role == RType.EVALUATOR) {
         if (user.evaluator.status == SType.INACTIVE)

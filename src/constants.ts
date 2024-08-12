@@ -30,7 +30,8 @@ export const RESPONSE_MESSAGE = {
     ATTENDANCES_SUCCESS: "Attendance's Marked successfully",
     ATTENDANCE_SUCCESS: "Attendance Marked successfully",
     COMMENT: "Commented successfully",
-    SUBMIT:"Submited successfully"
+    SUBMIT:"Submited successfully",
+    REQUEST_SUCCESS:"Request successfully"
 }
 
 export const ERROR_MESSAGES = {
@@ -74,9 +75,9 @@ export const ERROR_MESSAGES = {
     CANT_UPDATE_AFTER_ENDORSE: "Can't update after endorsement",
     ENDORSEMENT_NOT_START: "Endorsement has not started",
     ATTENDANCE_START_END: "Attendance can be marked after 10 a.m and before 6 p.m.",
-    MAX_ENROLLMENTS: "Maximum enrollments exceeded for project",
+    MAX_ENROLLMENTS: "This project has hit maximum capacity! :-( How about trying your luck with another great option?",
     DIFF_COLLEGE: "Belongs to a different college",
-    GROUP_ALREADY_ENROLLED_PROJECT: "Group already enrolled to project",
+    GROUP_ALREADY_ENROLLED_PROJECT: "Cool! your group is already enrolled.",
     GROUP_NOT_ENROLLED_PROJECT: "Group not enrolled to project",
     STUDENT_GROUP_EXISTS: "Students already exist in group",
     ALREADY_ENDORSED: "Already endorsed",

@@ -10,8 +10,8 @@ export class StudentMasterDto {
   name: string;
 
   @ApiProperty({ type: String })
-  // @IsNotEmpty()
-  // @IsEmail()
+  @IsNotEmpty()
+  @IsEmail()
   email: string;
 
   @ApiProperty({ type: Number })
@@ -81,6 +81,8 @@ export class StudentMasterBulkDto {
   section: string;
 
   @ApiProperty({ type: String })
+  @IsNotEmpty()
+  @IsEmail()
   email: string;
 
   @ApiProperty({ type: Number })

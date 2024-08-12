@@ -41,7 +41,7 @@ export class EvaluatorStudentController {
     }
 
     @UseGuards(JwtAuthGuard, RolesGuard)
-    @Roles('SUPERADMIN','ADMIN')
+    @Roles('ADMIN')
     @Post('bulkuploadindiviualwise')
     @ApiResponse({ status: 201, description: 'The record has been successfully fetched.' })
     @ApiResponse({ status: 403, description: 'Forbidden.' })
@@ -54,7 +54,7 @@ export class EvaluatorStudentController {
     }
 
     @UseGuards(JwtAuthGuard, RolesGuard)
-    @Roles('SUPERADMIN','ADMIN')
+    @Roles('ADMIN')
     @Post('bulkuploadgroupwise')
     @ApiResponse({ status: 201, description: 'The record has been successfully fetched.' })
     @ApiResponse({ status: 403, description: 'Forbidden.' })
@@ -67,7 +67,7 @@ export class EvaluatorStudentController {
     }
 
     @UseGuards(JwtAuthGuard, RolesGuard)
-    @Roles('SUPERADMIN','ADMIN')
+    @Roles('ADMIN')
     @Put('updateevaluator')
     @ApiResponse({ status: 201, description: 'The record has been successfully fetched.' })
     @ApiResponse({ status: 403, description: 'Forbidden.' })
@@ -80,14 +80,14 @@ export class EvaluatorStudentController {
     }
 
     @UseGuards(JwtAuthGuard, RolesGuard)
-    @Roles('SUPERADMIN','ADMIN')
+    @Roles('ADMIN')
     @Put('updatetype')
     @ApiResponse({ status: 201, description: 'The record has been successfully fetched.' })
     @ApiResponse({ status: 403, description: 'Forbidden.' })
     @UsePipes(new ValidationPipe())
     async updateESType(@Request() req, @Body() updateEvaluatorStudentTypeDto: UpdateEvaluatorStudentTypeDto) {
         logger.debug(`reqUser:${req.user.username} EvaluatorStudent updateESType is calling with body: ${JSON.stringify(updateEvaluatorStudentTypeDto)}`);
-        const result = await this.evaluatorStudentService.updateESType(req.user.username, updateEvaluatorStudentTypeDto);
+        const result = await this.evaluatorStudentService.updateESType(req.user, updateEvaluatorStudentTypeDto);
         logger.debug(`reqUser:${req.user.username} return in EvaluatorStudent updateESType controller > service response: ${result.Error ? `error: ${result.message}` : `response: ${result.message}}`}`);
         return result;
     }
@@ -99,7 +99,7 @@ export class EvaluatorStudentController {
     @ApiResponse({ status: 403, description: 'Forbidden.' })
     async findStudentsBySchedule(@Request() req, @Param('escheduleId', ParseIntPipe) escheduleId: number) {
         logger.debug(`reqUser:${req.user.username} EvaluatorStudent findStudentsBySchedule is calling with params: escheduleId: ${escheduleId}`);
-        const result = await this.evaluatorStudentService.findStudentsBySchedule(req.user.username, escheduleId);
+        const result = await this.evaluatorStudentService.findStudentsBySchedule(req.user, escheduleId);
         logger.debug(`reqUser:${req.user.username} return in EvaluatorStudent findStudentsBySchedule controller > service response: ${result.Error ? `error: ${result.message}` : `students_count: ${result.payload.length}`}}`);
         return result;
     }
@@ -111,7 +111,7 @@ export class EvaluatorStudentController {
     @ApiResponse({ status: 403, description: 'Forbidden.' })
     async findStudentsByEvaluatorAndSchedule(@Request() req, @Param('escheduleId', ParseIntPipe) escheduleId: number, @Param('evaluatorId', ParseIntPipe) evaluatorId: number) {
         logger.debug(`reqUser:${req.user.username} EvaluatorStudent findStudentsByEvaluatorAndSchedule is calling with params escheduleId:${escheduleId}, evaluatorId:${evaluatorId}`);
-        const result = await this.evaluatorStudentService.findStudentsByEvaluatorAndSchedule(req.user.username, escheduleId, evaluatorId);
+        const result = await this.evaluatorStudentService.findStudentsByEvaluatorAndSchedule(req.user, escheduleId, evaluatorId);
         logger.debug(`reqUser:${req.user.username} return in EvaluatorStudent findStudentsByEvaluatorAndSchedule controller > service response: ${result.Error ? `error: ${result.message}` : `students_count: ${result.payload.length}`}}`);
         return result;
     }

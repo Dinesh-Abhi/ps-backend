@@ -72,6 +72,11 @@ export class CreateEvaluationResultDto {
     // @IsBoolean()
     // eliteflag: boolean;
 
+    @ApiProperty({ type: Boolean })
+    @IsNotEmpty()
+    @IsBoolean()
+    nextps: boolean;
+
     @ApiProperty({ type: Number, description: "evaluatorstudentId" }) // evaluatorstudentId ID
     @IsNumber()
     @IsNotEmpty()
@@ -84,6 +89,11 @@ export class UpdateResultCommentDto {
     @IsNotEmpty()
     @IsNumber()
     id: number;
+
+    @ApiProperty({ type: Number })
+    @IsNotEmpty()
+    @IsNumber()
+    escheduleId: number;
 
     @ApiProperty({ type: String })
     @IsNotEmpty()
@@ -156,6 +166,9 @@ export class CreateGroupResultDto {
     @IsNumber()
     grade: number;
 
+    @ApiProperty({ type: [Number] })   
+    @IsArray()
+    nextps: number[];
 
     @ApiProperty({ type: Number })
     @IsNotEmpty()

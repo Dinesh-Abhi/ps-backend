@@ -1,6 +1,6 @@
 import { IsArray, IsDate, IsEnum, IsNotEmpty, IsNumber, IsString, ValidateNested, isNotEmpty } from 'class-validator';
 import { ApiProperty } from "@nestjs/swagger";
-import { PSSType } from 'src/enums';
+import { PSSession, PSSType } from 'src/enums';
 import { Type } from 'class-transformer';
 export class PsMasterDto {
 
@@ -28,6 +28,11 @@ export class PsMasterDto {
   @IsNumber()
   @IsNotEmpty()
   groupcount: number;
+
+  @ApiProperty({ enum: PSSession })
+  @IsEnum(PSSession)
+  @IsNotEmpty()
+  session: PSSession;
 }
 
 export class PsUpdateDto{
@@ -66,6 +71,10 @@ export class PsUpdateDto{
   @IsNotEmpty()
   status: PSSType;
 
+  @ApiProperty({ enum: PSSession })
+  @IsEnum(PSSession)
+  @IsNotEmpty()
+  session: PSSession;
 }
 
 export class ScheduleProjectEnrollDto{

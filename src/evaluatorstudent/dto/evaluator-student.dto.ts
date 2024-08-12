@@ -169,4 +169,9 @@ export class UpdateEvaluatorStudentTypeDto {
     @IsNotEmpty()
     @IsEnum(EvaluationType)
     evaluationtype: EvaluationType;
+
+    @ApiProperty({ type: Number })
+    @IsNotEmpty()
+    @IsNumber()
+    escheduleId: number;
 }

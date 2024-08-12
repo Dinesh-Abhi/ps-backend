@@ -10,6 +10,8 @@ import { RType, SType } from 'src/enums';
 import { ERROR_MESSAGES, RESPONSE_MESSAGE } from 'src/constants';
 import { EmailService } from 'src/email/email';
 import { ReqUserType } from 'src/all.formats';
+import { StudentMaster } from 'src/studentmaster/student-master.entity';
+import { MentorMaster } from 'src/mentormaster/mentor-master.entity';
 
 @Injectable()
 export class UserMasterService {
@@ -17,6 +19,10 @@ export class UserMasterService {
     constructor(
         @InjectRepository(UserMaster)
         private readonly userMasterRepository: Repository<UserMaster>,
+        @InjectRepository(StudentMaster)
+        private readonly studentMasterRepository: Repository<StudentMaster>,
+        @InjectRepository(MentorMaster)
+        private readonly mentorMasterRepository: Repository<MentorMaster>,
         private readonly emailService: EmailService,
     ) {
         this.filepath = path.basename(__filename);
@@ -120,6 +126,7 @@ export class UserMasterService {
                             name: true,
                             status: true,
                             email: true,
+                            mentornotification: true,
                             college: {
                                 id: true,
                                 code: true,
@@ -437,9 +444,18 @@ export class UserMasterService {
                     where: { username: changePasswordDto.username },
                     relations: { student: true }
                 })
-                if (student != null && student.student.email) {
+                if (student != null && student.student != null && student.student.email != null) {
                     const email = await this.emailService.sendpasswordEmail(reqUsername, student.username, student.student.name, changePasswordDto.password, student.student.email)
                     logger.debug(`reqUser:${reqUsername} Password Email send response: ${JSON.stringify(email)}`)
+                }
+            } else if (userdata.role == RType.MENTOR) {
+                const mentor = await this.userMasterRepository.findOne({
+                    where: { username: changePasswordDto.username },
+                    relations: { mentor: true }
+                })
+                if (mentor != null && mentor.mentor != null && mentor.mentor.email != null) {
+                    const email = await this.emailService.sendpasswordEmail(reqUsername, mentor.username, mentor.mentor.name, changePasswordDto.password, mentor.mentor.email)
+                    logger.debug(`reqUser: ${reqUsername} Password Email send response: ${JSON.stringify(email)}`)
                 }
             }
             logger.debug(`reqUser:${reqUsername} updatePasswordByAdmin sevice password changed successfully and returned`);
@@ -464,6 +480,9 @@ export class UserMasterService {
             }
 
             if (await compare(resetPasswordDto.oldpassword.trim(), userdata.password)) {
+                if (resetPasswordDto.oldpassword.trim() == resetPasswordDto.newpassword.trim())
+                    throw "The old and new passwords are the same."
+
                 const hash_password = await hash(resetPasswordDto.newpassword.trim(), 10);// Hash the password using bcrypt
                 await this.userMasterRepository.update({ id: userdata.id }, {
                     password: hash_password,
@@ -474,15 +493,30 @@ export class UserMasterService {
                         where: { username: resetPasswordDto.username },
                         relations: { student: true }
                     })
-                    if (student != null && student.student != null && student.student.email != null) {
-                        const email = await this.emailService.sendpasswordEmail(reqUser.username, student.username, student.student.name, resetPasswordDto.newpassword, student.student.email)
-                        logger.debug(`reqUser: ${reqUser.username} Password Email send response: ${JSON.stringify(email)}`)
+                    if (student != null && student.student != null) {
+                        await this.studentMasterRepository.update(student.student.id, { isforcepasswordenable: false });
+                        if (student.student.email != null) {
+                            const email = await this.emailService.sendpasswordEmail(reqUser.username, student.username, student.student.name, resetPasswordDto.newpassword, student.student.email)
+                            logger.debug(`reqUser: ${reqUser.username} Password Email send response: ${JSON.stringify(email)}`)
+                        }
+                    }
+                } else if (userdata.role == RType.MENTOR) {
+                    const mentor = await this.userMasterRepository.findOne({
+                        where: { username: resetPasswordDto.username },
+                        relations: { mentor: true }
+                    })
+                    if (mentor != null && mentor.mentor != null) {
+                        await this.mentorMasterRepository.update(mentor.mentor.id, { isforcepasswordenable: false });
+                        if (mentor.mentor.email != null) {
+                            const email = await this.emailService.sendpasswordEmail(reqUser.username, mentor.username, mentor.mentor.name, resetPasswordDto.newpassword, mentor.mentor.email)
+                            logger.debug(`reqUser: ${reqUser.username} Password Email send response: ${JSON.stringify(email)}`)
+                        }
                     }
                 }
                 logger.debug(`reqUser: ${reqUser.username} usermaster ResetPassword service returned`);
                 return { Error: false, message: "Password changed successfully" }
             } else {
-                return { Error: true, message: "Incorrect old password." }
+                throw "Incorrect old password."
             }
         } catch (error) {
             const err_message = (typeof error == 'object' ? error.message : error);

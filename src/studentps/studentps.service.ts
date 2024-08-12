@@ -271,6 +271,8 @@ export class StudentPsService {
                                 category: true,
                                 problemstatement: true,
                                 title: true,
+                                techstack: true,
+                                reflink: true,
                                 mentors: {
                                     id: true,
                                     name: true
@@ -283,11 +285,13 @@ export class StudentPsService {
                         milestonestudentps: {
                             id: true,
                             milestonedetails: true,
+                            marks: true,
                             milestone: {
                                 id: true,
                                 name: true,
                                 enable: true,
                                 lastdate: true,
+                                weightage: true,
                             }
                         },
                         es: {
@@ -381,9 +385,8 @@ export class StudentPsService {
             };
             await randomDelay();
             const s_set = new Set(groupEnrollDto.students);
-            if (groupEnrollDto.students.length == 0 || s_set.size != groupEnrollDto.students.length || ps.groupcount != s_set.size){
+            if (groupEnrollDto.students.length == 0 || s_set.size != groupEnrollDto.students.length || ps.groupcount != s_set.size)
                 throw `Students ${ERROR_MESSAGES.DUP_ENTRY}`;
-            }
             let studentps: any = await this.studentPsRepository.find({
                 where: {
                     status: SType.ACTIVE,
@@ -716,7 +719,7 @@ export class StudentPsService {
                     milestonestudentps: { id: true },
                     student: { id: true, name: true, section: true, usermaster: { username: true, id: true } },
                     group: {
-                        id: true, name: true, createdby: true, status: true, updatedon: true,
+                        id: true, name: true, createdby: true, status: true, updatedon: true, nominee1: true, nominee2: true,
                         project: { id: true, title: true, mentors: { id: true, name: true } }
                     },
                     es: { id: true, evaluator: { id: true, name: true }, evaluationschedule: { id: true, name: true, start: true, end: true } }
@@ -734,6 +737,7 @@ export class StudentPsService {
                         sps_status: sps[i].status,
                         username: sps[i].student.usermaster.username,
                         groupId: sps[i].group.id,
+                        nominee: sps[i].student.usermaster.username == sps[i].group.nominee1 || sps[i].student.usermaster.username == sps[i].group.nominee2,
                         groupName: sps[i].group.name,
                         group_createdby: sps[i].group.createdby,
                         group_status: sps[i].group.status,
@@ -967,6 +971,99 @@ export class StudentPsService {
 
             logger.debug(`reqUser: ${reqUser.username} studentps adminDailyDashboardReport returned`);
             return { Error: false, payload: { overall_data: overall_data, daily_data: daily_data } }
+        } catch (error) {
+            const err_message = (typeof error == 'object' ? error.message : error);
+            logger.error(`reqUser: ${reqUser.username} error in studentps adminDailyDashboardReport service > ${err_message}`);
+            return { Error: true, message: err_message };
+        }
+    }
+
+    async studentResultsReport(reqUser: ReqUserType, psId: number) {
+        try {
+            logger.debug(`reqUser: ${reqUser.username} studentps adminDailyDashboardReport service started`);
+            if (reqUser.role == RType.ADMIN) {
+                const ps = await this.psMasterRepository.findOne({ where: { id: psId, college: { adminmaster: { usermaster: { id: reqUser.sub } } } } });
+                if (ps == null)
+                    throw "Admin not found for PS"
+            }
+
+            const ps = await this.psMasterRepository.findOne({
+                where: { id: psId },
+                relations: { milestones: true, evaluationschedule: true },
+                select: {
+                    id: true,
+                    milestones: { id: true, name: true, weightage: true },
+                    evaluationschedule: { id: true, name: true }
+                }
+            });
+            let queryBuilder: any
+            if (reqUser.role == RType.MENTOR) {
+                queryBuilder = this.studentPsRepository.createQueryBuilder('sps')
+                    .innerJoin('sps.student', 's')
+                    .innerJoin('s.usermaster', 'u')
+                    .innerJoin('sps.ps', 'ps')
+                    .innerJoin('sps.group', 'group')
+                    .innerJoin('group.project', 'project')
+                    .innerJoin('project.mentors', 'mentors')
+                    .innerJoin('mentors.usermaster', 'mu')
+                    .leftJoin('sps.es', 'es')
+                    .leftJoin('es.evaluationresult', 'er')
+                    .leftJoin('ps.evaluationschedule', 'eschedule')
+                    .innerJoin('sps.milestonestudentps', 'msp')
+                    .innerJoin('msp.milestone', 'm')
+                    .where('ps.id = :psId', { psId })
+                    .andWhere('mu.id = :muId', { muId: reqUser.sub })
+                    .select('u.username', 'rollno')
+                    .addSelect('s.name', 'name');
+            } else {
+                queryBuilder = this.studentPsRepository.createQueryBuilder('sps')
+                    .innerJoin('sps.student', 's')
+                    .innerJoin('s.usermaster', 'u')
+                    .innerJoin('sps.ps', 'ps')
+                    .leftJoin('sps.es', 'es')
+                    .leftJoin('es.evaluationresult', 'er')
+                    .leftJoin('ps.evaluationschedule', 'eschedule')
+                    .innerJoin('sps.milestonestudentps', 'msp')
+                    .innerJoin('msp.milestone', 'm')
+                    .where('ps.id = :psId', { psId })
+                    .select('u.username', 'rollno')
+                    .addSelect('s.name', 'name');
+            }
+
+            ps.milestones.forEach((milestone, index) => {
+                queryBuilder.addSelect(
+                    `MAX(CASE WHEN m.name = :milestone${index} THEN msp.marks END)`,
+                    `${milestone.name.replace(/\s+/g, '_')}_grade`
+                );
+                queryBuilder.addSelect(
+                    `COALESCE(MAX(CASE WHEN m.name = :milestone${index} THEN m.weightage END), ${milestone.weightage})`,
+                    `${milestone.name.replace(/\s+/g, '_')}_weightage`
+                );
+                queryBuilder.setParameter(`milestone${index}`, milestone.name);
+            });
+
+            ps.evaluationschedule.forEach((schedule, index) => {
+                // queryBuilder.addSelect(
+                //     `MAX(CASE WHEN eschedule.id = :schedule${index} THEN eschedule.weightage END)`,
+                //     `${schedule.name.replace(/\s+/g, '_')}_weightage`
+                // );
+                queryBuilder.addSelect(
+                    `MAX(CASE WHEN eschedule.id = :schedule${index} THEN er.grade END)`,
+                    `${schedule.name.replace(/\s+/g, '_')}`
+                );
+                queryBuilder.setParameter(`schedule${index}`, schedule.id);
+            });
+
+            queryBuilder
+                .groupBy('u.username')
+                .addGroupBy('s.name')
+                .addGroupBy('er.grade')
+                .orderBy('u.username', 'DESC');
+
+            const data = await queryBuilder.getRawMany();
+
+            logger.debug(`reqUser: ${reqUser.username} studentps adminDailyDashboardReport returned`);
+            return { Error: false, payload: data }
         } catch (error) {
             const err_message = (typeof error == 'object' ? error.message : error);
             logger.error(`reqUser: ${reqUser.username} error in studentps adminDailyDashboardReport service > ${err_message}`);
@@ -1236,144 +1333,152 @@ export class StudentPsService {
 
     async syncAttendanceToTrinetraCronJob() {
         //this is only for 2nd years afternoon attendance  based on timings please try to sync attendance
-        logger.debug(`reqUser: TrinetraCron syncAttendanceToTrinetraCronJob started`)
-        const present = '1'
-        const absent = '0'
-        const method = "3318"
-        let date = moment().format('YY-MM-DD');
-        let D = new Date(moment(date, 'YY-MM-DD').format('YYYY-MM-DD'));
-        let tomorrowD = new Date(D.getTime() + 24 * 60 * 60 * 1000);
-        const ps_attendance = await this.studentPsRepository
-            .createQueryBuilder('sps')
-            .leftJoinAndSelect('sps.student', 's')
-            .leftJoinAndSelect('sps.attendance', 'att')
-            .leftJoin('s.college', 'clg')
-            .leftJoinAndSelect('s.usermaster', 'u')
-            .where('att.createdon BETWEEN :D AND :tomorrowD', { D, tomorrowD })
-            .andWhere('u.username NOT LIKE :username', { username: 'VIRTUALSTUDENT%' })
-            .select([
-                'u.username as htno',
-                'att.attendance as attendance',
-                'clg.code as clgCode'
-            ])
-            .getRawMany()
-        logger.debug(`reqUser: TrinetraCron total_student_attendance_count: ${ps_attendance.length}`)
-        const kmitcollegedata: any[] = [];
-        const ngitcollegedata: any[] = [];
-        const kmeccollegedata: any[] = [];
-        const kmcecollegedata: any[] = [];
-        let responses = [];
+        const current_ps = await this.psMasterRepository.find({ where: { status: PSSType.IN_PROGRESS }, relations: { college: true } });
 
-        if (ps_attendance.length > 0) {
+        await Promise.all(current_ps?.flatMap(async (ps) => {
+            logger.debug(`reqUser: TrinetraCron syncAttendanceToTrinetraCronJob started`)
+            const present = '1'
+            const absent = '0'
+            const method = "3318"
+            let date = moment().format('YY-MM-DD');
+            let D = new Date(moment(date, 'YY-MM-DD').format('YYYY-MM-DD'));
+            let tomorrowD = new Date(D.getTime() + 24 * 60 * 60 * 1000);
+            const ps_attendance = await this.studentPsRepository
+                .createQueryBuilder('sps')
+                .leftJoinAndSelect('sps.student', 's')
+                .leftJoinAndSelect('sps.attendance', 'att')
+                .leftJoin('s.college', 'clg')
+                .leftJoinAndSelect('s.usermaster', 'u')
+                .where('att.createdon BETWEEN :D AND :tomorrowD', { D, tomorrowD })
+                .andWhere('u.username NOT LIKE :username', { username: 'VIRTUALSTUDENT%' })
+                .andWhere('sps.psId = :psId', { psId: ps.id })
+                .select([
+                    'u.username as htno',
+                    'att.attendance as attendance',
+                    'clg.code as clgCode'
+                ])
+                .getRawMany()
+            logger.debug(`reqUser: TrinetraCron total_student_attendance_count: ${ps_attendance.length}`)
+            const kmitcollegedata: any[] = [];
+            const ngitcollegedata: any[] = [];
+            const kmeccollegedata: any[] = [];
+            const kmcecollegedata: any[] = [];
+            let responses = [];
 
-            await Promise.all(ps_attendance?.map((obj) => {
-                const json = {
-                    htno: obj.htno,
-                    noon: obj.attendance == AttendanceEnum.PRESENT ? present : absent,
-                    attdate: date
-                }
-                if (obj.clgCode == 'KMIT') {
-                    kmitcollegedata.push(json);
-                } else if (obj.clgCode == 'NGIT') {
-                    ngitcollegedata.push(json);
-                } else if (obj.clgCode == 'KMEC') {
-                    kmeccollegedata.push(json);
-                } else if (obj.clgCode == 'KMCE') {
-                    kmcecollegedata.push(json);
+            if (ps_attendance.length > 0) {
+
+                await Promise.all(ps_attendance?.map((obj) => {
+                    const json = {
+                        htno: obj.htno,
+                        noon: obj.attendance == AttendanceEnum.PRESENT ? present : absent,
+                        attdate: date
+                    }
+                    if (obj.clgCode == 'KMIT') {
+                        kmitcollegedata.push(json);
+                    } else if (obj.clgCode == 'NGIT') {
+                        ngitcollegedata.push(json);
+                    } else if (obj.clgCode == 'KMEC') {
+                        kmeccollegedata.push(json);
+                    } else if (obj.clgCode == 'KMCE') {
+                        kmcecollegedata.push(json);
+                    } else {
+                        return
+                    }
+                }));
+                const kmit_send_data = JSON.stringify({
+                    "method": method,
+                    "students": kmitcollegedata
+                });
+                const ngit_send_data = JSON.stringify({
+                    "method": method,
+                    "students": ngitcollegedata
+                });
+                const kmec_send_data = JSON.stringify({
+                    "method": method,
+                    "students": kmeccollegedata
+                });
+                const kmce_send_data = JSON.stringify({
+                    "method": method,
+                    "students": kmcecollegedata
+                });
+                if (kmitcollegedata.length > 0) {
+                    try {
+                        logger.info(`reqUser: TrinetraCron > kmit_ps_attendance: ${JSON.stringify(kmitcollegedata)} > kmit_ps_attendance_length: ${kmitcollegedata.length} > kmit_send_data: ${JSON.stringify(kmit_send_data)}`)
+                        const SendDataRes = await axios.post(`${process.env.KMIT_TRINETRA_URL}`, kmit_send_data);
+                        responses.push({
+                            PS: ps.academicyear + ps.studentyear + ps.semester + "",
+                            kmit: SendDataRes.data
+                        })
+                        logger.info(`reqUser: TrinetraCron > kmit_returned > ${JSON.stringify(SendDataRes.data)}`);
+                    } catch (error) {
+                        responses.push({ kmit: (typeof error == 'object' ? error?.message : error) })
+                        logger.error(`reqUser: TrinetraCron > Unable to run TrinetraCron for KMIT college to sync attendance to sanjaya response ${(typeof error == 'object' ? error?.message : error)}`)
+                    }
                 } else {
-                    return
+                    logger.info(`reqUser: TrinetraCron > syncAttendanceToTrinetraCronJob log > kmit_attendance_length: ${kmitcollegedata.length} --attendance null `);
+                    responses.push({ kmit: "data null" })
                 }
-            }));
-            const kmit_send_data = JSON.stringify({
-                "method": method,
-                "students": kmitcollegedata
-            });
-            const ngit_send_data = JSON.stringify({
-                "method": method,
-                "students": ngitcollegedata
-            });
-            const kmec_send_data = JSON.stringify({
-                "method": method,
-                "students": kmeccollegedata
-            });
-            const kmce_send_data = JSON.stringify({
-                "method": method,
-                "students": kmcecollegedata
-            });
-            if (kmitcollegedata.length > 0) {
-                try {
-                    logger.info(`reqUser: TrinetraCron > kmit_ps_attendance: ${JSON.stringify(kmitcollegedata)} > kmit_ps_attendance_length: ${kmitcollegedata.length} > kmit_send_data: ${JSON.stringify(kmit_send_data)}`)
-                    const SendDataRes = await axios.post(`${process.env.KMIT_TRINETRA_URL}`, kmit_send_data);
-                    responses.push({ kmit: SendDataRes.data })
-                    logger.info(`reqUser: TrinetraCron > kmit_returned > ${JSON.stringify(SendDataRes.data)}`);
-                } catch (error) {
-                    responses.push({ kmit: (typeof error == 'object' ? error?.message : error) })
-                    logger.warn(`unable to run TrinetraCron for KMIT college to sync attendance to sanjaya response ${(typeof error == 'object' ? error?.message : error)}`)
+
+                if (ngitcollegedata.length > 0) {
+                    try {
+                        logger.info(`reqUser: TrinetraCron > ngit_ps_attendance: ${JSON.stringify(ngitcollegedata)} > ngit_ps_attendance_length: ${ngitcollegedata.length} > ngit_send_data: ${JSON.stringify(ngit_send_data)}`)
+                        const SendDataRes = await axios.post(`${process.env.NGIT_TRINETRA_URL}`, ngit_send_data);
+                        responses.push({ PS: ps.academicyear + ps.studentyear + ps.semester + "", ngit: SendDataRes.data })
+                        logger.info(`reqUser: TrinetraCron > ngit_returned > ${JSON.stringify(SendDataRes.data)}`);
+                    } catch (error) {
+                        responses.push({ ngit: (typeof error == 'object' ? error?.message : error) })
+                        logger.error(`reqUser: TrinetraCron > Unable to run TrinetraCron for NGIT college to sync attendance to sanjaya response ${(typeof error == 'object' ? error?.message : error)}`)
+                    }
+                } else {
+                    logger.info(`reqUser: TrinetraCron > syncAttendanceToTrinetraCronJob log > ngit_ps_attendance_length: ${ngitcollegedata.length} --attendance null `);
+                    responses.push({ ngit: "data null" })
                 }
-            } else {
-                logger.info(`reqUser: TrinetraCron > syncAttendanceToTrinetraCronJob log > kmit_attendance_length: ${kmitcollegedata.length} --attendance null `);
-                responses.push({ kmit: "data null" })
+
+                if (kmeccollegedata.length > 0) {
+                    try {
+                        logger.info(`reqUser: TrinetraCron > kmec_ps_attendance: ${JSON.stringify(kmeccollegedata)} > kmec_ps_attendance_length: ${kmeccollegedata.length} > kmec_send_data: ${JSON.stringify(kmec_send_data)}`)
+                        const SendDataRes = await axios.post(`${process.env.KMEC_TRINETRA_URL}`, kmec_send_data);
+                        responses.push({ PS: ps.academicyear + ps.studentyear + ps.semester + "", kmec: SendDataRes.data })
+                        logger.info(`reqUser: TrinetraCron > kmec_returned > ${JSON.stringify(SendDataRes.data)}`);
+                    } catch (error) {
+                        responses.push({ kmec: (typeof error == 'object' ? error?.message : error) })
+                        logger.error(`reqUser: TrinetraCron > Unable to run TrinetraCron for KMEC college to sync attendance to sanjaya response ${(typeof error == 'object' ? error?.message : error)}`)
+                    }
+                } else {
+                    logger.info(`reqUser: TrinetraCron > syncAttendanceToTrinetraCronJob log > kmec_attendance_length: ${kmeccollegedata.length} --attendance null `);
+                    responses.push({ kmec: "data null" })
+                }
+
+                logger.info("We are not syncing ps attendane for kmce students attendance");
+                // if (kmcecollegedata.length > 0) {
+                //     logger.info(`reqUser: TrinetraCron > kmce_ps_attendance: ${JSON.stringify(kmcecollegedata)} > kmce_ps_attendance_length: ${kmcecollegedata.length} > kmce_send_data: ${JSON.stringify(kmce_send_data)}`)
+                //     const SendDataRes = await axios.post(`${process.env.KMCE_TRINETRA_URL}`, kmce_send_data);
+                //     responses.push({ PS: ps.academicyear + ps.studentyear + ps.semester + "", kmce: SendDataRes.data })
+                //     logger.info(`reqUser: TrinetraCron > 
+                //     kmce_returned > ${SendDataRes.data}`);
+                // } catch(error){
+                //         responses.push({ kmce: (typeof error == 'object' ? error?.message : error) })
+                //         logger.error(`reqUser: TrinetraCron > Unable to run TrinetraCron for KMCE college to sync attendance to sanjaya response ${(typeof error == 'object' ? error?.message : error)}`)
+                //     }
+                // } else {
+                //     logger.info(`reqUser: TrinetraCron > syncAttendanceToTrinetraCronJob log > kmce_attendance_length: ${kmcecollegedata.length} --attendance null `);
+                //     responses.push({ kmce: "data null" })
+                // }
+                logger.debug(`reqUser: TrinetraCron syncAttendanceToTrinetraCronJob completed`)
+
+                /*axios example res data format
+                  SendDataRes.data string(16) "----------------"
+                  string(15) "375--totalcount"
+                  string(14) "0--insertcount"
+                  string(16) "375--updatecount"
+                  string(17) "Array--missedhtno"
+                  string(15) "0--attskipcount"
+                  string(16) "----------------"
+                  { "error": "false", "msg": "Attendance Saved " } */
             }
-
-            if (ngitcollegedata.length > 0) {
-                try {
-                    logger.info(`reqUser: TrinetraCron > ngit_ps_attendance: ${JSON.stringify(ngitcollegedata)} > ngit_ps_attendance_length: ${ngitcollegedata.length} > ngit_send_data: ${JSON.stringify(ngit_send_data)}`)
-                    const SendDataRes = await axios.post(`${process.env.NGIT_TRINETRA_URL}`, ngit_send_data);
-                    responses.push({ ngit: SendDataRes.data })
-                    logger.info(`reqUser: TrinetraCron > ngit_returned > ${SendDataRes.data}`);
-                } catch (error) {
-                    responses.push({ ngit: (typeof error == 'object' ? error?.message : error) })
-                    logger.warn(`unable to run TrinetraCron for NGIT college to sync attendance to sanjaya response ${(typeof error == 'object' ? error?.message : error)}`)
-                }
-            } else {
-                logger.info(`reqUser: TrinetraCron > syncAttendanceToTrinetraCronJob log > ngit_ps_attendance_length: ${ngitcollegedata.length} --attendance null `);
-                responses.push({ ngit: "data null" })
-            }
-
-            logger.info("We are not syncing ps attendane for kmen and kmce students");
-            if (kmeccollegedata.length > 0) {
-                try {
-                    logger.info(`reqUser: TrinetraCron > kmec_ps_attendance: ${JSON.stringify(kmeccollegedata)} > kmec_ps_attendance_length: ${kmeccollegedata.length} > kmec_send_data: ${JSON.stringify(kmec_send_data)}`)
-                    const SendDataRes = await axios.post(`${process.env.KMEC_TRINETRA_URL}`, kmec_send_data);
-                    responses.push({ kmec: SendDataRes.data })
-                    logger.info(`reqUser: TrinetraCron > kmec_returned > ${SendDataRes.data}`);
-                } catch (error) {
-                    responses.push({ kmec: (typeof error == 'object' ? error?.message : error) })
-                    logger.warn(`unable to run TrinetraCron for KMEC college to sync attendance to sanjaya response ${(typeof error == 'object' ? error?.message : error)}`)
-                }
-            } else {
-                logger.info(`reqUser: TrinetraCron > syncAttendanceToTrinetraCronJob log > kmec_attendance_length: ${kmeccollegedata.length} --attendance null `);
-                responses.push({ kmec: "data null" })
-            }
-
-            // if (kmcecollegedata.length > 0) {
-            //     logger.info(`reqUser: TrinetraCron > kmce_ps_attendance: ${JSON.stringify(kmcecollegedata)} > kmce_ps_attendance_length: ${kmcecollegedata.length} > kmce_send_data: ${JSON.stringify(kmce_send_data)}`)
-            //     const SendDataRes = await axios.post(`${process.env.KMCE_TRINETRA_URL}`, kmce_send_data);
-            //     responses.push({ kmce: SendDataRes.data })
-            //     logger.info(`reqUser: TrinetraCron > 
-            //     kmce_returned > ${SendDataRes.data}`);
-            // } catch(error){
-            //         responses.push({ kmce: (typeof error == 'object' ? error?.message : error) })
-            //         logger.warn(`unable to run TrinetraCron for KMCE college to sync attendance to sanjaya response ${(typeof error == 'object' ? error?.message : error)}`)
-            //     }
-            // } else {
-            //     logger.info(`reqUser: TrinetraCron > syncAttendanceToTrinetraCronJob log > kmce_attendance_length: ${kmcecollegedata.length} --attendance null `);
-            //     responses.push({ kmce: "data null" })
-            // }
-            logger.debug(`reqUser: TrinetraCron syncAttendanceToTrinetraCronJob completed`)
-
-            /*axios example res data format
-              SendDataRes.data string(16) "----------------"
-              string(15) "375--totalcount"
-              string(14) "0--insertcount"
-              string(16) "375--updatecount"
-              string(17) "Array--missedhtno"
-              string(15) "0--attskipcount"
-              string(16) "----------------"
-              { "error": "false", "msg": "Attendance Saved " } */
-        }
-        responses = responses.length == 0 ? ["Today no ps"] : responses
-        this.emailService.cronEmail("Trinetra Cron", "Ps Attendance Trinetra Cron Completed", responses)
+            responses = responses.length == 0 ? [`Today no ps for college: ${ps?.college?.code} psId: ${ps.id}`] : responses
+            this.emailService.cronEmail("Trinetra Cron", "Ps Attendance Trinetra Cron Completed", responses)
+        }))
     }
 
     async getDatesBetween(startDate: string, endDate: string) {
@@ -1605,6 +1710,7 @@ export class StudentPsService {
                             attendance: data,
                         }
                         try {
+                            logger.debug(`sending email to mentor ${mentor.name}`)
                             const res = await this.emailService.sendMentorAttendanceEmail(jsonData);
                             logger.debug(`Email sent response > ${JSON.stringify(res)}`);
                         } catch (emailError) {

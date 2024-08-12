@@ -8,7 +8,7 @@ import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import { Roles } from 'src/auth/roles.decorator';
 import { AssignStudentsDto, BulkAssignStudentsDto, EvaluatorMasterDto, EvaluatorUpdateDto } from './dto/evaluator-master.dto';
 
-@ApiTags('evaluatorresults')
+@ApiTags('evaluatormaster')
 @ApiSecurity("JWT-auth")
 
 @Controller('evaluatormaster')

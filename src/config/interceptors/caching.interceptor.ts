@@ -9,26 +9,28 @@ import {
 import { Observable } from 'rxjs';
 import { Cache } from 'cache-manager';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Reflector } from '@nestjs/core';
 
 @Injectable()
 export class CachingInterceptor implements NestInterceptor {
-    constructor(@Inject(CACHE_MANAGER) private cacheManager: Cache) { }
+    constructor(@Inject(CACHE_MANAGER) private cacheManager: Cache, private reflector: Reflector) { }
 
     async intercept(context: ExecutionContext, next: CallHandler): Promise<Observable<any>> {
         const request = context.switchToHttp().getRequest();
         const key = request?.user?.username ?? request?.user?.user?.username;
-        const token = request?.headers?.authorization?.split(' ')[1]; // Extract token from Authorization header
-        
-        if (request.url == '/auth/login') {
-            return next.handle();
-        } else if (process.env.APP_ENV == 'development') {
+        const token = request?.headers?.authorization?.split(' ')[1];
+
+        // Check for custom metadata
+        const skipInterceptor = this.reflector.get<boolean>('skipInterceptor', context.getHandler());
+        if (skipInterceptor) {
             return next.handle();
         }
-        
+
+        if (process.env.APP_ENV == 'development') {
+            return next.handle();
+        }
+
         const cachedToken = await this.cacheManager.get(key);
-        if (request.url == '/auth/logout') {
-            return next.handle();
-        }
         if (cachedToken) {
             if (cachedToken === token) {
                 return next.handle();

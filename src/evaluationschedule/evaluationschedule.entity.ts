@@ -16,6 +16,9 @@ export class EvaluationSchedule {
   end: Date;
 
   // @Column({ nullable: true })
+  // weightage: number;
+
+  // @Column({ nullable: true })
   // enable: boolean;
 
   // @Column({ nullable: true })

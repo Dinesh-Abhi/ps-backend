@@ -35,7 +35,7 @@ export class EvaluationResultsController {
     @UsePipes(new ValidationPipe())
     async createGroup(@Request() req, @Body() createGroupResultDto: CreateGroupResultDto) {
         logger.debug(`reqUser: ${req.user.username} evaluationresults createGroup is calling with body ${JSON.stringify(createGroupResultDto)}`);
-        const result = await this.evaluationResultsService.createGroup(req.user.username, createGroupResultDto);
+        const result = await this.evaluationResultsService.createGroup(req.user, createGroupResultDto);
         logger.debug(`reqUser: ${req.user.username} return in evaluationresults createGroup controller > service response: ${(result.Error ? `error: ${result.message}` : `Evaluation Result ${result.message}`)}`);
         return result;
     }
@@ -48,7 +48,7 @@ export class EvaluationResultsController {
     @UsePipes(new ValidationPipe())
     async updateResultComment(@Request() req, @Body() updateResultCommentDto: UpdateResultCommentDto) {
         logger.debug(`reqUser: ${req.user.username} evaluationresults updateResultComment is calling with body updateResultCommentDto: ${JSON.stringify(updateResultCommentDto)}`);
-        const result = await this.evaluationResultsService.updateResultComment(req.user.username, updateResultCommentDto);
+        const result = await this.evaluationResultsService.updateResultComment(req.user, updateResultCommentDto);
         logger.debug(`reqUser: ${req.user.username} return in evaluationresults updateResultComment controller > service response: ${(result.Error ? `error: ${result.message}` : `Evaluation Result ${result.message}`)}`);
         return result;
     }

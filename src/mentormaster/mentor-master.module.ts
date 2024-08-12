@@ -14,14 +14,18 @@ import { EmailService } from 'src/email/email';
 import { StudentPs } from 'src/studentps/studentps.entity';
 import { EvaluationSchedule } from 'src/evaluationschedule/evaluationschedule.entity';
 import { GroupMaster } from 'src/groupmaster/group-master.entity';
+import { StudentMaster } from 'src/studentmaster/student-master.entity';
+import { AdminMaster } from 'src/adminmaster/admin-master.entity';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([
-    MentorMaster, UserMaster, 
+    MentorMaster, StudentMaster,
+    UserMaster, 
     College, EvaluatorStudent, 
     EvaluatorMaster, StudentPs, 
-    EvaluationSchedule, GroupMaster
+    EvaluationSchedule, GroupMaster,
+    AdminMaster
   ])],
   providers: [MentorMasterService, UserMasterService, CollegeService, EvaluatorStudentService, EmailService],
   controllers: [MentorMasterController]

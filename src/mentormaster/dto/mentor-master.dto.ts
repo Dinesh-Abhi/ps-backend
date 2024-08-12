@@ -18,6 +18,7 @@ export class MentorMasterDto {
 
     @ApiProperty({ type: String })
     @IsEmail()
+    @IsNotEmpty()
     email: string;
 
     @ApiProperty({ type: String })
@@ -46,6 +47,7 @@ export class MentorUpdateDto {
 
     @ApiProperty({ type: String })
     @IsEmail()
+    @IsNotEmpty()
     email: string;
 
     // @ApiProperty({ type: String })
@@ -84,4 +86,16 @@ export class MentorProfileUpdateDto {
     @IsNotEmpty()
     @IsEmail()
     email: string;
+}
+
+export class CommentDto {
+    @ApiProperty({ type: Number })
+    @IsNotEmpty()
+    @IsNumber()
+    mentorId: number;
+
+    @ApiProperty({ type: String })
+    @IsNotEmpty()
+    @IsString()
+    comment: string;
 }

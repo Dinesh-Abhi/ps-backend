@@ -7,10 +7,11 @@ import { StudentPs } from 'src/studentps/studentps.entity';
 import { EvaluatorMaster } from 'src/evaluatormaster/evaluator-master.entity';
 import { EvaluationSchedule } from 'src/evaluationschedule/evaluationschedule.entity';
 import { GroupMaster } from 'src/groupmaster/group-master.entity';
+import { AdminMaster } from 'src/adminmaster/admin-master.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([EvaluatorStudent, StudentPs, EvaluatorMaster, EvaluationSchedule, GroupMaster]),
+    TypeOrmModule.forFeature([EvaluatorStudent, StudentPs, EvaluatorMaster, EvaluationSchedule, GroupMaster, AdminMaster]),
   ],
   controllers: [EvaluatorStudentController],
   providers: [EvaluatorStudentService]

@@ -15,6 +15,9 @@ export class StudentMaster {
   @Column({ nullable: true, default: null })
   email: string;
 
+  @Column({ default: true })
+  isforcepasswordenable: boolean;
+
   @Column()
   section: string;
 

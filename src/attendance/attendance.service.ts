@@ -274,7 +274,7 @@ export class AttendanceService {
                 }
             }
             logger.debug(`reqUser: ${reqUser.username} attendance markAttendanceByAdmin response returned`)
-            return { Error: false, meaasge: RESPONSE_MESSAGE.ATTENDANCE_SUCCESS, payload: { dup: students } }
+            return { Error: false, message: RESPONSE_MESSAGE.ATTENDANCE_SUCCESS, payload: { dup: students } }
         } catch (error) {
             const err_message = (typeof error == 'object' ? error.message : error);
             logger.error(`reqUser: ${reqUser.username} error: ${err_message} > error in Attendance markAttendanceByAdmin service`);
@@ -285,7 +285,6 @@ export class AttendanceService {
     async markAbsentAttendanceAtEndOfDayCornJob() {
         try {
             // this method is used to mark attendance for student how are absent or not endorsed on that day 
-            const curr_Date = new Date();
             logger.debug(`reqUser: Cron Attendance markAbsentAttendanceAtEndOfDayCornJob started`);
             const curr_pss = await this.psMasterService.findAllWorkingPs("Cron");
             if (curr_pss.Error)
